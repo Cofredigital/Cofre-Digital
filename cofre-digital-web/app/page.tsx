@@ -1,65 +1,133 @@
-import Image from "next/image";
+import Link from "next/link";
 
-export default function Home() {
+export default function HomePage() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <main className="min-h-screen bg-gradient-to-b from-blue-700 via-blue-700 to-blue-800">
+      {/* HERO */}
+      <section className="max-w-6xl mx-auto px-4 py-14">
+        <div className="grid lg:grid-cols-2 gap-10 items-center">
+          {/* Esquerda */}
+          <div className="space-y-7">
+            <div className="inline-flex items-center gap-2 rounded-full bg-white/15 border border-white/20 px-4 py-2 text-sm text-white">
+              🔐 Cofre Digital • Segurança + organização
+            </div>
+
+            <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight text-white leading-[1.05]">
+              Organização digital não é luxo — é{" "}
+              <span className="text-indigo-200">proteção</span>.
+            </h1>
+
+            <p className="text-lg md:text-xl text-blue-100 max-w-xl">
+              Guarde com segurança senhas, contas, documentos, bancos,
+              assinaturas e tudo que você precisar — em um só lugar.
+            </p>
+
+            {/* Botões */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Link
+                href="/register"
+                className="px-7 py-3 rounded-2xl bg-white text-blue-800 font-semibold hover:bg-blue-50 transition text-center"
+              >
+                Criar minha conta
+              </Link>
+
+              <Link
+                href="/planos"
+                className="px-7 py-3 rounded-2xl bg-white/10 border border-white/20 text-white font-semibold hover:bg-white/15 transition text-center"
+              >
+                Ver planos
+              </Link>
+            </div>
+
+            {/* Benefícios */}
+            <div className="grid sm:grid-cols-2 gap-3 pt-4">
+              {[
+                "✅ Bancos e cartões",
+                "✅ Contas a pagar",
+                "✅ Streaming e assinaturas",
+                "✅ Certidões e documentos",
+              ].map((item) => (
+                <div
+                  key={item}
+                  className="rounded-2xl border border-white/20 bg-white/10 px-4 py-3 text-white"
+                >
+                  {item}
+                </div>
+              ))}
+            </div>
+
+            <p className="text-blue-100/80 text-sm pt-2">
+              Quem se prepara hoje evita sofrimento amanhã.
+            </p>
+          </div>
+
+          {/* Direita */}
+          <div className="flex justify-center">
+            <div className="w-full max-w-xl rounded-[34px] border border-white/15 bg-white/10 shadow-2xl shadow-black/20 overflow-hidden backdrop-blur-xl">
+              <div className="p-5">
+                {/* Imagem */}
+                <div className="rounded-3xl overflow-hidden border border-white/10 bg-black/10">
+                  <img
+                    src="/hero-cofre.png"
+                    alt="Cofre Digital"
+                    className="w-full h-[320px] object-cover"
+                  />
+                </div>
+
+                {/* Lista de benefícios */}
+                <div className="mt-5 grid grid-cols-2 gap-3 text-sm text-white">
+                  <div className="flex items-center gap-2">
+                    <span>✅</span> Backup e segurança
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span>✅</span> Pastas ilimitadas
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span>✅</span> Acesso rápido
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span>✅</span> Organização total
+                  </div>
+                </div>
+
+                {/* Botões */}
+                <div className="mt-6 flex flex-col sm:flex-row gap-3">
+                  <Link
+                    href="/planos"
+                    className="w-full px-5 py-3 rounded-2xl bg-emerald-600 text-white font-semibold hover:bg-emerald-700 transition text-center"
+                  >
+                    Começar com 24h • R$ 9,90
+                  </Link>
+
+                  <Link
+                    href="/login"
+                    className="w-full px-5 py-3 rounded-2xl bg-white text-blue-800 font-semibold hover:bg-blue-50 transition text-center"
+                  >
+                    Entrar
+                  </Link>
+                </div>
+
+                {/* Rodapé do card */}
+                <div className="mt-5 rounded-2xl bg-white/10 border border-white/15 p-4 text-white/90 text-sm">
+                  🔒 Login e dados protegidos • Cofre Digital
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Faixa inferior */}
+      <section className="border-t border-white/15">
+        <div className="max-w-6xl mx-auto px-4 py-10 text-center">
+          <p className="text-white font-medium">
+            “Organização digital não é luxo — é proteção.”
+          </p>
+          <p className="text-xs text-blue-100/80 mt-1">
+            Cofre Digital — Proteja o que é importante
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+      </section>
+    </main>
   );
 }
