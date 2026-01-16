@@ -1,20 +1,27 @@
 import admin from "firebase-admin";
 
-if (!admin.apps.length) {
-  const credentialsPath = process.env.FIREBASE_ADMIN_CREDENTIALS_PATH;
+function getAdminCredentials() {
+  const json = process.env.FIREBASE_ADMIN_CREDENTIALS_JSON;
 
-  if (!credentialsPath) {
+  if (!json) {
     throw new Error(
-      "FIREBASE_ADMIN_CREDENTIALS_PATH não configurado no .env.local"
+      "FIREBASE_ADMIN_CREDENTIALS_JSON não configurado nas Environment Variables"
     );
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const serviceAccount = require(credentialsPath);
+  try {
+    const serviceAccount = JSON.parse(json);
+    return admin.credential.cert(serviceAccount);
+  } catch (e) {
+    throw new Error("FIREBASE_ADMIN_CREDENTIALS_JSON inválido (falha ao ler JSON)");
+  }
+}
 
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-});
+// Evita reinicializar no hot-reload
+if (!admin.apps.length) {
+  admin.initializeApp({
+    credential: getAdminCredentials(),
+  });
 }
 
 export const adminDb = admin.firestore();
