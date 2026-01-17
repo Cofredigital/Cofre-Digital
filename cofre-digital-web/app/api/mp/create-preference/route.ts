@@ -9,8 +9,14 @@ function round2(n: number) {
 }
 
 function annualWithDiscount(monthly: number) {
-  // anual = mensal * 12 com 25% OFF
   return round2(monthly * 12 * 0.75);
+}
+
+function normalizeUrl(url: string) {
+  // remove espaços e remove barra final
+  let u = url.trim();
+  u = u.replace(/\/+$/, "");
+  return u;
 }
 
 const PLANS: Record<string, { name: string; monthly: number }> = {
@@ -46,20 +52,41 @@ export async function POST(req: Request) {
       );
     }
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    // ✅ URL do app (produção)
+    const rawAppUrl =
+      process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
-    // ✅ Cliente Mercado Pago
+    const appUrl = normalizeUrl(rawAppUrl);
+
+    // ✅ Segurança extra: Mercado Pago exige http/https
+    if (!appUrl.startsWith("http://") && !appUrl.startsWith("https://")) {
+      return NextResponse.json(
+        {
+          error:
+            "NEXT_PUBLIC_APP_URL inválido (precisa começar com https:// ou http://)",
+          details: appUrl,
+        },
+        { status: 500 }
+      );
+    }
+
     const mpClient = new MercadoPagoConfig({ accessToken });
     const preference = new Preference(mpClient);
 
     let price = PLANS[plan].monthly;
     let title = PLANS[plan].name;
 
-    // Anual com 25% OFF (somente mensal/premium)
     if (plan !== "24h" && type === "annual") {
       price = annualWithDiscount(PLANS[plan].monthly);
       title = `${PLANS[plan].name} (Anual - 25% OFF)`;
     }
+
+    const successUrl = `${appUrl}/checkout/success`;
+    const pendingUrl = `${appUrl}/checkout/pending`;
+    const failureUrl = `${appUrl}/checkout/failure`;
+
+    console.log("MP appUrl:", appUrl);
+    console.log("MP back_urls:", { successUrl, pendingUrl, failureUrl });
 
     const result = await preference.create({
       body: {
@@ -77,9 +104,9 @@ export async function POST(req: Request) {
         external_reference: uid,
 
         back_urls: {
-          success: `${appUrl}/checkout/success`,
-          pending: `${appUrl}/checkout/pending`,
-          failure: `${appUrl}/checkout/failure`,
+          success: successUrl,
+          pending: pendingUrl,
+          failure: failureUrl,
         },
 
         auto_return: "approved",
@@ -93,7 +120,6 @@ export async function POST(req: Request) {
       sandbox_init_point: result.sandbox_init_point,
     });
   } catch (err: any) {
-    // ✅ Isso vai fazer o erro REAL aparecer no LOG da Vercel
     console.error("MP create-preference ERROR:", err);
 
     return NextResponse.json(
