@@ -1,4 +1,12 @@
+"use client";
+
 import Link from "next/link";
+import { useState } from "react";
+
+// ✅ IMPORTANTE: ajuste este caminho se o seu firebase estiver em outro lugar.
+// Exemplos comuns:
+// "@/lib/firebase"  ou  "@/firebase/config"  ou  "@/app/firebase"
+import { auth } from "@/lib/firebase";
 
 function formatBRL(value: number) {
   return value.toLocaleString("pt-BR", {
@@ -198,25 +206,18 @@ export default function PlanosPage() {
 
                 {/* botões */}
                 <div className="mt-7 grid gap-3">
-                  <Link
-                    href={`/checkout?plan=${plan.id}&type=standard`}
-                    className={[
-                      "w-full text-center px-5 py-3 rounded-2xl font-extrabold transition",
-                      plan.featured
-                        ? "bg-white text-blue-800 hover:bg-blue-50"
-                        : "bg-white/10 text-white border border-white/20 hover:bg-white/15",
-                    ].join(" ")}
-                  >
-                    Assinar agora
-                  </Link>
+                  <CheckoutButton
+                    planId={plan.id}
+                    type="standard"
+                    featured={plan.featured}
+                  />
 
                   {plan.showAnnual && (
-                    <Link
-                      href={`/checkout?plan=${plan.id}&type=annual`}
-                      className="w-full text-center px-5 py-3 rounded-2xl font-extrabold transition bg-emerald-600 text-white hover:bg-emerald-700"
-                    >
-                      Assinar anual (25% OFF)
-                    </Link>
+                    <CheckoutButton
+                      planId={plan.id}
+                      type="annual"
+                      featured={plan.featured}
+                    />
                   )}
                 </div>
 
@@ -235,5 +236,78 @@ export default function PlanosPage() {
         </div>
       </section>
     </main>
+  );
+}
+
+function CheckoutButton({
+  planId,
+  type,
+  featured,
+}: {
+  planId: string;
+  type: "standard" | "annual";
+  featured: boolean;
+}) {
+  const [loading, setLoading] = useState(false);
+
+  const label =
+    type === "annual" ? "Assinar anual (25% OFF)" : "Assinar agora";
+
+  async function handleCheckout() {
+    try {
+      setLoading(true);
+
+      const uid = auth?.currentUser?.uid;
+
+      if (!uid) {
+        alert("Você precisa estar logado para assinar um plano.");
+        window.location.href = "/login";
+        return;
+      }
+
+      const res = await fetch("/api/mp/create-preference", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          plan: planId,
+          type,
+          uid,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data?.init_point) {
+        console.error("Erro ao criar preference:", data);
+        alert("Erro ao iniciar pagamento. Tente novamente.");
+        return;
+      }
+
+      // ✅ Abre Checkout Pro do Mercado Pago
+      window.location.href = data.init_point;
+    } catch (err) {
+      console.error(err);
+      alert("Erro inesperado ao iniciar pagamento.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <button
+      onClick={handleCheckout}
+      disabled={loading}
+      className={[
+        "w-full text-center px-5 py-3 rounded-2xl font-extrabold transition",
+        type === "annual"
+          ? "bg-emerald-600 text-white hover:bg-emerald-700"
+          : featured
+          ? "bg-white text-blue-800 hover:bg-blue-50"
+          : "bg-white/10 text-white border border-white/20 hover:bg-white/15",
+        loading ? "opacity-70 cursor-not-allowed" : "",
+      ].join(" ")}
+    >
+      {loading ? "Carregando..." : label}
+    </button>
   );
 }
