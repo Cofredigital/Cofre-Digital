@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { MercadoPagoConfig, Preference } from "mercadopago";
+import MercadoPagoConfig, { Preference } from "mercadopago";
 
-// ✅ Mercado Pago SDK precisa de Node runtime (não Edge)
+// ✅ IMPORTANTE: Mercado Pago SDK precisa de Node runtime (não Edge)
 export const runtime = "nodejs";
 
 function round2(n: number) {
@@ -9,12 +9,13 @@ function round2(n: number) {
 }
 
 function annualWithDiscount(monthly: number) {
+  // anual = mensal * 12 com 25% OFF
   return round2(monthly * 12 * 0.75);
 }
 
 function normalizeUrl(url: string) {
   // remove espaços e remove barra final
-  let u = url.trim();
+  let u = String(url || "").trim();
   u = u.replace(/\/+$/, "");
   return u;
 }
@@ -31,6 +32,8 @@ export async function POST(req: Request) {
 
     const plan = body?.plan as string;
     const type = (body?.type as "standard" | "annual") || "standard";
+
+    // ✅ UID do usuário (para o webhook liberar o plano)
     const uid = body?.uid as string;
 
     if (!plan || !PLANS[plan]) {
@@ -58,12 +61,12 @@ export async function POST(req: Request) {
 
     const appUrl = normalizeUrl(rawAppUrl);
 
-    // ✅ Segurança extra: Mercado Pago exige http/https
+    // ✅ Mercado Pago exige URL completa com http/https
     if (!appUrl.startsWith("http://") && !appUrl.startsWith("https://")) {
       return NextResponse.json(
         {
           error:
-            "NEXT_PUBLIC_APP_URL inválido (precisa começar com https:// ou http://)",
+            "NEXT_PUBLIC_APP_URL inválido. Precisa começar com https:// ou http://",
           details: appUrl,
         },
         { status: 500 }
@@ -76,17 +79,22 @@ export async function POST(req: Request) {
     let price = PLANS[plan].monthly;
     let title = PLANS[plan].name;
 
+    // Anual com 25% OFF (somente para mensal e premium)
     if (plan !== "24h" && type === "annual") {
       price = annualWithDiscount(PLANS[plan].monthly);
       title = `${PLANS[plan].name} (Anual - 25% OFF)`;
     }
 
+    // ✅ back_urls SEMPRE com URL completa
     const successUrl = `${appUrl}/checkout/success`;
     const pendingUrl = `${appUrl}/checkout/pending`;
     const failureUrl = `${appUrl}/checkout/failure`;
 
+    // ✅ log pra você ver na Vercel o que está indo pro MP
     console.log("MP appUrl:", appUrl);
     console.log("MP back_urls:", { successUrl, pendingUrl, failureUrl });
+    console.log("MP notification_url:", `${appUrl}/api/mp/webhook`);
+    console.log("MP external_reference (uid):", uid);
 
     const result = await preference.create({
       body: {
@@ -100,7 +108,10 @@ export async function POST(req: Request) {
           },
         ],
 
+        // ✅ Mercado Pago avisa seu servidor quando o pagamento mudar
         notification_url: `${appUrl}/api/mp/webhook`,
+
+        // ✅ UID do usuário para liberar plano depois
         external_reference: uid,
 
         back_urls: {
