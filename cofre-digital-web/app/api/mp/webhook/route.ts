@@ -8,15 +8,19 @@ export async function POST(req: Request) {
   try {
     const url = new URL(req.url);
 
-    // MP pode enviar id pelo query ou no body
+    // ✅ MP pode mandar payloads diferentes
+    // vamos tentar ler JSON, mas sem quebrar se vier vazio
     const body = await req.json().catch(() => ({}));
 
     const paymentId =
       url.searchParams.get("data.id") ||
+      url.searchParams.get("id") ||
       body?.data?.id ||
       body?.id;
 
+    // Se não veio ID, não fazemos nada
     if (!paymentId) {
+      console.log("MP webhook ignored (no paymentId). body:", body);
       return NextResponse.json({ ok: true, ignored: true });
     }
 
@@ -33,15 +37,32 @@ export async function POST(req: Request) {
 
     const info = await payment.get({ id: String(paymentId) });
 
+    // ✅ status do pagamento
     const status = info.status; // approved, pending, rejected...
+    const statusDetail = info.status_detail;
+
+    // ✅ normalmente guardamos o uid no external_reference
     const externalReference = info.external_reference;
 
-    // se ainda não estiver aprovado, ok
+    // ✅ extras úteis
+    const preferenceId = info?.order?.id || null; // nem sempre vem
+    const transactionAmount = info.transaction_amount ?? null;
+    const dateApproved = info.date_approved ?? null;
+
+    console.log("MP webhook payment:", {
+      paymentId,
+      status,
+      statusDetail,
+      externalReference,
+      transactionAmount,
+      dateApproved,
+    });
+
+    // Se ainda não estiver aprovado, só registramos e saímos
     if (status !== "approved") {
       return NextResponse.json({ ok: true, status });
     }
 
-    // aqui precisamos saber QUAL user pagou
     if (!externalReference) {
       return NextResponse.json({
         ok: true,
@@ -52,18 +73,28 @@ export async function POST(req: Request) {
 
     const uid = String(externalReference);
 
-    // salva no firestore
+    // ✅ grava no Firestore
     await adminDb.collection("users").doc(uid).set(
       {
         planStatus: "active",
         paidAt: new Date().toISOString(),
-        mpPaymentId: String(paymentId),
+
+        mp: {
+          paymentId: String(paymentId),
+          status,
+          statusDetail: statusDetail || null,
+          transactionAmount,
+          preferenceId,
+          dateApproved,
+          rawExternalReference: externalReference,
+        },
       },
       { merge: true }
     );
 
     return NextResponse.json({ ok: true, status, uid });
   } catch (err: any) {
+    console.error("MP webhook ERROR:", err);
     return NextResponse.json(
       { ok: false, error: String(err?.message || err) },
       { status: 500 }

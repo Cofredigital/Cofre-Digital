@@ -44,13 +44,43 @@ type SearchResult =
     };
 
 const DEFAULT_FOLDERS: Array<Omit<Folder, "id" | "createdAt">> = [
-  { title: "Bancos", desc: "Contas bancárias, agência, pix, senhas", icon: "🏦", parentId: null },
-  { title: "Contas a pagar", desc: "Boletos, vencimentos e lembretes", icon: "🧾", parentId: null },
-  { title: "Diversão", desc: "Netflix, Spotify e assinaturas", icon: "🎮", parentId: null },
+  {
+    title: "Bancos",
+    desc: "Contas bancárias, agência, pix, senhas",
+    icon: "🏦",
+    parentId: null,
+  },
+  {
+    title: "Contas a pagar",
+    desc: "Boletos, vencimentos e lembretes",
+    icon: "🧾",
+    parentId: null,
+  },
+  {
+    title: "Diversão",
+    desc: "Netflix, Spotify e assinaturas",
+    icon: "🎮",
+    parentId: null,
+  },
   { title: "Emails", desc: "Emails, recuperação, códigos", icon: "📧", parentId: null },
-  { title: "Certidões", desc: "Certidão, RG, CPF, CNH e PDFs", icon: "📜", parentId: null },
-  { title: "Cartório", desc: "Registros e documentos cartoriais", icon: "🏛️", parentId: null },
-  { title: "Escrituras", desc: "Imóveis, contratos e anexos", icon: "🏠", parentId: null },
+  {
+    title: "Certidões",
+    desc: "Certidão, RG, CPF, CNH e PDFs",
+    icon: "📜",
+    parentId: null,
+  },
+  {
+    title: "Cartório",
+    desc: "Registros e documentos cartoriais",
+    icon: "🏛️",
+    parentId: null,
+  },
+  {
+    title: "Escrituras",
+    desc: "Imóveis, contratos e anexos",
+    icon: "🏠",
+    parentId: null,
+  },
   { title: "Fotos", desc: "Fotos importantes e arquivos pessoais", icon: "📷", parentId: null },
   { title: "Viagem", desc: "Passagens, reservas, documentos", icon: "✈️", parentId: null },
 
@@ -191,10 +221,7 @@ export default function DashboardPage() {
 
       // 1) Pastas principais do dashboard (folders)
       for (const f of folders) {
-        if (
-          normalize(f.title).includes(term) ||
-          normalize(f.desc || "").includes(term)
-        ) {
+        if (normalize(f.title).includes(term) || normalize(f.desc || "").includes(term)) {
           results.push({ kind: "folder", id: f.id, title: f.title, icon: f.icon });
         }
       }
@@ -206,7 +233,6 @@ export default function DashboardPage() {
         const pastaId = pastaDoc.id;
         const pastaData = pastaDoc.data() as any;
 
-        // (se não existir nome, tudo bem)
         const pastaTitle = pastaData?.nome || pastaData?.title || "Pasta";
 
         // 2.1) itens dentro da pasta principal
@@ -261,16 +287,7 @@ export default function DashboardPage() {
           // itens dentro da subpasta
           const itensSubSnap = await getDocs(
             query(
-              collection(
-                db,
-                "users",
-                uid,
-                "pastas",
-                pastaId,
-                "subpastas",
-                subId,
-                "itens"
-              ),
+              collection(db, "users", uid, "pastas", pastaId, "subpastas", subId, "itens"),
               orderBy("criadoEm", "desc")
             )
           );
@@ -350,8 +367,9 @@ export default function DashboardPage() {
           </div>
 
           <div className="flex flex-wrap gap-3">
+            {/* ✅ CORREÇÃO AQUI: Home agora vai para o cofre e NÃO para "/" */}
             <Link
-              href="/"
+              href="/dashboard"
               className="rounded-2xl border border-white/30 px-5 py-2 font-semibold hover:bg-white/10"
             >
               Home
@@ -384,9 +402,7 @@ export default function DashboardPage() {
                 placeholder="Pesquisar no cofre (pastas, subpastas e itens)..."
                 className="w-full bg-transparent outline-none text-white placeholder:text-white/60"
               />
-              {searchLoading && (
-                <div className="text-xs text-white/70">pesquisando...</div>
-              )}
+              {searchLoading && <div className="text-xs text-white/70">pesquisando...</div>}
             </div>
 
             {/* Resultados */}
@@ -455,9 +471,7 @@ export default function DashboardPage() {
                   <span>{c.icon || "📁"}</span> {c.title}
                 </h2>
 
-                <p className="mt-2 text-white/80">
-                  {c.desc || "Pasta do seu cofre digital."}
-                </p>
+                <p className="mt-2 text-white/80">{c.desc || "Pasta do seu cofre digital."}</p>
 
                 <Link
                   href={`/pasta/${c.id}`}
