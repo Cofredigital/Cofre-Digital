@@ -11,6 +11,8 @@ export default function LoginPage() {
 
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
+  const [mostrarSenha, setMostrarSenha] = useState(false);
+
   const [erro, setErro] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -63,14 +65,36 @@ export default function LoginPage() {
 
           <div>
             <label className="text-sm font-medium text-zinc-700">Senha</label>
-            <input
-              type="password"
-              className="mt-1 w-full rounded-xl border border-zinc-300 px-4 py-3 outline-none focus:ring-2 focus:ring-blue-600"
-              value={senha}
-              onChange={(e) => setSenha(e.target.value)}
-              placeholder="sua senha"
-              required
-            />
+
+            <div className="mt-1 relative">
+              <input
+                type={mostrarSenha ? "text" : "password"}
+                className="w-full rounded-xl border border-zinc-300 px-4 py-3 pr-12 outline-none focus:ring-2 focus:ring-blue-600"
+                value={senha}
+                onChange={(e) => setSenha(e.target.value)}
+                placeholder="sua senha"
+                required
+              />
+
+              <button
+                type="button"
+                onClick={() => setMostrarSenha((s) => !s)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-zinc-600 hover:text-zinc-900"
+                aria-label={mostrarSenha ? "Ocultar senha" : "Mostrar senha"}
+              >
+                {mostrarSenha ? "🙈" : "👁️"}
+              </button>
+            </div>
+
+            {/* ✅ Esqueci minha senha */}
+            <div className="mt-2 text-right">
+              <Link
+                href="/forgot-password"
+                className="text-sm font-semibold text-blue-700 hover:underline"
+              >
+                Esqueci minha senha
+              </Link>
+            </div>
           </div>
 
           {erro && (
