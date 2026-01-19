@@ -62,7 +62,12 @@ const DEFAULT_FOLDERS: Array<Omit<Folder, "id" | "createdAt">> = [
     icon: "🎮",
     parentId: null,
   },
-  { title: "Emails", desc: "Emails, recuperação, códigos", icon: "📧", parentId: null },
+  {
+    title: "Emails",
+    desc: "Emails, recuperação, códigos",
+    icon: "📧",
+    parentId: null,
+  },
   {
     title: "Certidões",
     desc: "Certidão, RG, CPF, CNH e PDFs",
@@ -81,12 +86,32 @@ const DEFAULT_FOLDERS: Array<Omit<Folder, "id" | "createdAt">> = [
     icon: "🏠",
     parentId: null,
   },
-  { title: "Fotos", desc: "Fotos importantes e arquivos pessoais", icon: "📷", parentId: null },
-  { title: "Viagem", desc: "Passagens, reservas, documentos", icon: "✈️", parentId: null },
+  {
+    title: "Fotos",
+    desc: "Fotos importantes e arquivos pessoais",
+    icon: "📷",
+    parentId: null,
+  },
+  {
+    title: "Viagem",
+    desc: "Passagens, reservas, documentos",
+    icon: "✈️",
+    parentId: null,
+  },
 
-  // ✅ extras que você pediu:
-  { title: "Médico", desc: "Exames, receitas, laudos e carteirinhas", icon: "🩺", parentId: null },
-  { title: "Advogado", desc: "Ações, processos e contratos", icon: "⚖️", parentId: null },
+  // ✅ extras:
+  {
+    title: "Médico",
+    desc: "Exames, receitas, laudos e carteirinhas",
+    icon: "🩺",
+    parentId: null,
+  },
+  {
+    title: "Advogado",
+    desc: "Ações, processos e contratos",
+    icon: "⚖️",
+    parentId: null,
+  },
 ];
 
 function normalize(txt: string) {
@@ -221,8 +246,16 @@ export default function DashboardPage() {
 
       // 1) Pastas principais do dashboard (folders)
       for (const f of folders) {
-        if (normalize(f.title).includes(term) || normalize(f.desc || "").includes(term)) {
-          results.push({ kind: "folder", id: f.id, title: f.title, icon: f.icon });
+        if (
+          normalize(f.title).includes(term) ||
+          normalize(f.desc || "").includes(term)
+        ) {
+          results.push({
+            kind: "folder",
+            id: f.id,
+            title: f.title,
+            icon: f.icon,
+          });
         }
       }
 
@@ -249,7 +282,10 @@ export default function DashboardPage() {
           const conteudo = it?.conteudo || "";
           const tipo = (it?.tipo || "nota") as "nota" | "senha" | "link";
 
-          if (normalize(titulo).includes(term) || normalize(conteudo).includes(term)) {
+          if (
+            normalize(titulo).includes(term) ||
+            normalize(conteudo).includes(term)
+          ) {
             results.push({
               kind: "item",
               pastaId,
@@ -287,7 +323,16 @@ export default function DashboardPage() {
           // itens dentro da subpasta
           const itensSubSnap = await getDocs(
             query(
-              collection(db, "users", uid, "pastas", pastaId, "subpastas", subId, "itens"),
+              collection(
+                db,
+                "users",
+                uid,
+                "pastas",
+                pastaId,
+                "subpastas",
+                subId,
+                "itens"
+              ),
               orderBy("criadoEm", "desc")
             )
           );
@@ -298,7 +343,10 @@ export default function DashboardPage() {
             const conteudo = it?.conteudo || "";
             const tipo = (it?.tipo || "nota") as "nota" | "senha" | "link";
 
-            if (normalize(titulo).includes(term) || normalize(conteudo).includes(term)) {
+            if (
+              normalize(titulo).includes(term) ||
+              normalize(conteudo).includes(term)
+            ) {
               results.push({
                 kind: "item",
                 pastaId,
@@ -336,7 +384,7 @@ export default function DashboardPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search, uid]);
 
-  // ✅ AGORA COM itemId (scroll/destaque)
+  // ✅ abrir resultado
   function openResult(r: SearchResult) {
     if (r.kind === "folder") {
       router.push(`/pasta/${r.id}`);
@@ -367,7 +415,7 @@ export default function DashboardPage() {
           </div>
 
           <div className="flex flex-wrap gap-3">
-            {/* ✅ CORREÇÃO AQUI: Home agora vai para o cofre e NÃO para "/" */}
+            {/* ✅ FIX: Home agora vai para /dashboard */}
             <Link
               href="/dashboard"
               className="rounded-2xl border border-white/30 px-5 py-2 font-semibold hover:bg-white/10"
@@ -402,7 +450,9 @@ export default function DashboardPage() {
                 placeholder="Pesquisar no cofre (pastas, subpastas e itens)..."
                 className="w-full bg-transparent outline-none text-white placeholder:text-white/60"
               />
-              {searchLoading && <div className="text-xs text-white/70">pesquisando...</div>}
+              {searchLoading && (
+                <div className="text-xs text-white/70">pesquisando...</div>
+              )}
             </div>
 
             {/* Resultados */}
@@ -419,7 +469,9 @@ export default function DashboardPage() {
                         <b>
                           {r.icon || "📁"} {r.title}
                         </b>
-                        <div className="text-xs text-white/70">📁 Pasta principal</div>
+                        <div className="text-xs text-white/70">
+                          📁 Pasta principal
+                        </div>
                       </div>
                     )}
 
@@ -455,7 +507,9 @@ export default function DashboardPage() {
 
         {/* Cards */}
         <section className="mt-10 grid gap-6 md:grid-cols-3">
-          {loadingFolders && <div className="text-white/80">Carregando pastas...</div>}
+          {loadingFolders && (
+            <div className="text-white/80">Carregando pastas...</div>
+          )}
 
           {!loadingFolders && filteredFolders.length === 0 && (
             <div className="text-white/80">Nenhuma pasta encontrada.</div>
@@ -471,7 +525,9 @@ export default function DashboardPage() {
                   <span>{c.icon || "📁"}</span> {c.title}
                 </h2>
 
-                <p className="mt-2 text-white/80">{c.desc || "Pasta do seu cofre digital."}</p>
+                <p className="mt-2 text-white/80">
+                  {c.desc || "Pasta do seu cofre digital."}
+                </p>
 
                 <Link
                   href={`/pasta/${c.id}`}
@@ -486,7 +542,8 @@ export default function DashboardPage() {
         {/* Info */}
         <section className="mt-10">
           <div className="rounded-3xl border border-white/10 bg-white/10 p-5 text-sm text-white/80">
-            ✅ Dica: dentro de cada pasta, você pode criar <b>subpastas</b> (ex: Bancos → Nubank / Itaú).
+            ✅ Dica: dentro de cada pasta, você pode criar <b>subpastas</b> (ex:
+            Bancos → Nubank / Itaú).
           </div>
         </section>
       </div>
