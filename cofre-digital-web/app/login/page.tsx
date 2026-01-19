@@ -14,9 +14,16 @@ export default function LoginPage() {
 
   // ✅ Se já estiver logado, não deixa ficar preso no /login
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (user) => {
+    // ✅ 1) se já tem user carregado, redireciona na hora
+    if (auth.currentUser) {
+      router.replace("/dashboard");
+      return;
+    }
+
+    // ✅ 2) se ainda não carregou, espera o firebase avisar
+    const unsub = onAuthStateChanged(auth, (user) => {
       if (user) {
-        router.push("/dashboard");
+        router.replace("/dashboard");
       }
     });
 
@@ -55,7 +62,7 @@ export default function LoginPage() {
       }
 
       // 4) Redirecionar para o dashboard
-      router.push("/dashboard");
+      router.replace("/dashboard");
     } catch (err: any) {
       console.error(err);
       alert(err?.message || "Erro ao entrar. Tente novamente.");
