@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { onAuthStateChanged, signInWithEmailAndPassword } from "firebase/auth";
+import { useRouter } from "next/navigation";
+import { signInWithEmailAndPassword, onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 
 export default function LoginPage() {
@@ -13,11 +13,11 @@ export default function LoginPage() {
   const [senha, setSenha] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // ✅ SE JÁ ESTIVER LOGADO -> MANDA PRO DASHBOARD
+  // ✅ Se já estiver logado, manda direto pro dashboard
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (user) => {
       if (user) {
-        router.replace("/dashboard");
+        router.replace("/dashboard"); // <- replace evita voltar pra /login
       }
     });
 
@@ -28,19 +28,19 @@ export default function LoginPage() {
     e.preventDefault();
 
     if (!email || !senha) {
-      alert("Preencha e-mail e senha.");
+      alert("Preencha email e senha.");
       return;
     }
 
-    try {
-      setLoading(true);
-      await signInWithEmailAndPassword(auth, email, senha);
+    setLoading(true);
 
-      // ✅ login OK -> vai pro dashboard
+    try {
+      await signInWithEmailAndPassword(auth, email.trim(), senha);
+
+      // ✅ reforço do redirect (algumas vezes o firebase demora)
       router.replace("/dashboard");
     } catch (err: any) {
-      alert("Erro ao entrar. Verifique e-mail e senha.");
-      console.log(err);
+      alert("Erro ao entrar. Verifique email e senha.");
     } finally {
       setLoading(false);
     }
@@ -49,39 +49,34 @@ export default function LoginPage() {
   return (
     <main className="min-h-screen bg-gradient-to-b from-blue-900 to-blue-950 flex items-center justify-center px-4">
       <div className="w-full max-w-md rounded-3xl bg-white p-8 shadow-xl">
-        <h1 className="text-2xl font-extrabold text-gray-900">Entrar</h1>
-        <p className="text-sm text-gray-600 mt-1">
-          Acesse sua conta do Cofre Digital.
-        </p>
+        <h1 className="text-3xl font-extrabold text-gray-900">Entrar</h1>
+        <p className="mt-1 text-gray-600">Acesse sua conta do Cofre Digital.</p>
 
         <form onSubmit={handleLogin} className="mt-6 space-y-4">
           <div>
             <label className="text-sm font-semibold text-gray-700">E-mail</label>
             <input
+              type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              type="email"
+              className="mt-2 w-full rounded-xl border border-gray-200 px-4 py-3 outline-none focus:border-blue-500"
               placeholder="seuemail@email.com"
-              className="mt-2 w-full rounded-2xl border border-gray-200 px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
           <div>
             <label className="text-sm font-semibold text-gray-700">Senha</label>
             <input
+              type="password"
               value={senha}
               onChange={(e) => setSenha(e.target.value)}
-              type="password"
+              className="mt-2 w-full rounded-xl border border-gray-200 px-4 py-3 outline-none focus:border-blue-500"
               placeholder="sua senha"
-              className="mt-2 w-full rounded-2xl border border-gray-200 px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
-          <div className="flex items-center justify-end">
-            <Link
-              href="/forgot-password"
-              className="text-sm font-semibold text-blue-700 hover:underline"
-            >
+          <div className="flex justify-end">
+            <Link href="/forgot-password" className="text-sm font-bold text-blue-700 hover:underline">
               Esqueci minha senha
             </Link>
           </div>
@@ -89,7 +84,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-2xl bg-blue-600 py-4 font-extrabold text-white hover:bg-blue-700 transition disabled:opacity-70"
+            className="w-full rounded-2xl bg-blue-700 py-4 font-extrabold text-white hover:bg-blue-800 disabled:opacity-60"
           >
             {loading ? "Entrando..." : "Entrar"}
           </button>
