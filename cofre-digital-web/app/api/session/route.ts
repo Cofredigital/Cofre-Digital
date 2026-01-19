@@ -4,20 +4,21 @@ import admin from "firebase-admin";
 function initAdmin() {
   if (admin.apps.length) return;
 
-  const projectId = process.env.FIREBASE_PROJECT_ID;
-  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
+  const json = process.env.FIREBASE_ADMIN_CREDENTIALS_JSON;
 
-  if (!projectId || !clientEmail || !privateKey) {
-    throw new Error("Firebase Admin env vars missing");
+  if (!json) {
+    throw new Error("Missing FIREBASE_ADMIN_CREDENTIALS_JSON");
+  }
+
+  const serviceAccount = JSON.parse(json);
+
+  // ✅ garante quebras de linha do private_key
+  if (serviceAccount.private_key) {
+    serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, "\n");
   }
 
   admin.initializeApp({
-    credential: admin.credential.cert({
-      projectId,
-      clientEmail,
-      privateKey,
-    }),
+    credential: admin.credential.cert(serviceAccount),
   });
 }
 
@@ -35,10 +36,10 @@ export async function POST(req: Request) {
       );
     }
 
-    // duração da sessão (ex: 5 dias)
+    // duração da sessão: 5 dias
     const expiresIn = 60 * 60 * 24 * 5 * 1000;
 
-    // cria cookie de sessão real (seguro)
+    // ✅ cria o cookie real de sessão do Firebase
     const sessionCookie = await admin
       .auth()
       .createSessionCookie(idToken, { expiresIn });
