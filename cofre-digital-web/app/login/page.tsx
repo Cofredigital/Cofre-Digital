@@ -1,126 +1,106 @@
 "use client";
 
-import Link from "next/link";
-import { useState } from "react";
-import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "@/lib/firebase";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { onAuthStateChanged, signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "@/lib/firebase";
 
 export default function LoginPage() {
   const router = useRouter();
 
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
-  const [mostrarSenha, setMostrarSenha] = useState(false);
-
-  const [erro, setErro] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // ✅ SE JÁ ESTIVER LOGADO -> MANDA PRO DASHBOARD
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        router.replace("/dashboard");
+      }
+    });
+
+    return () => unsub();
+  }, [router]);
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
-    setErro("");
-    setLoading(true);
+
+    if (!email || !senha) {
+      alert("Preencha e-mail e senha.");
+      return;
+    }
 
     try {
-      const cred = await signInWithEmailAndPassword(auth, email, senha);
+      setLoading(true);
+      await signInWithEmailAndPassword(auth, email, senha);
 
-      // ✅ cria cookie seguro no backend
-      const idToken = await cred.user.getIdToken();
-
-      await fetch("/api/session", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ idToken }),
-      });
-
-      router.push("/dashboard");
+      // ✅ login OK -> vai pro dashboard
+      router.replace("/dashboard");
     } catch (err: any) {
-      console.log("ERRO FIREBASE LOGIN:", err);
-      setErro("E-mail ou senha inválidos.");
+      alert("Erro ao entrar. Verifique e-mail e senha.");
+      console.log(err);
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <main className="min-h-screen bg-zinc-50 flex items-center justify-center px-4">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow p-6 border border-zinc-200">
-        <h1 className="text-2xl font-bold text-zinc-900">Entrar</h1>
-        <p className="text-sm text-zinc-600 mt-1">
+    <main className="min-h-screen bg-gradient-to-b from-blue-900 to-blue-950 flex items-center justify-center px-4">
+      <div className="w-full max-w-md rounded-3xl bg-white p-8 shadow-xl">
+        <h1 className="text-2xl font-extrabold text-gray-900">Entrar</h1>
+        <p className="text-sm text-gray-600 mt-1">
           Acesse sua conta do Cofre Digital.
         </p>
 
         <form onSubmit={handleLogin} className="mt-6 space-y-4">
           <div>
-            <label className="text-sm font-medium text-zinc-700">E-mail</label>
+            <label className="text-sm font-semibold text-gray-700">E-mail</label>
             <input
-              type="email"
-              className="mt-1 w-full rounded-xl border border-zinc-300 px-4 py-3 outline-none focus:ring-2 focus:ring-blue-600"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              type="email"
               placeholder="seuemail@email.com"
-              required
+              className="mt-2 w-full rounded-2xl border border-gray-200 px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
           <div>
-            <label className="text-sm font-medium text-zinc-700">Senha</label>
-
-            <div className="mt-1 relative">
-              <input
-                type={mostrarSenha ? "text" : "password"}
-                className="w-full rounded-xl border border-zinc-300 px-4 py-3 pr-12 outline-none focus:ring-2 focus:ring-blue-600"
-                value={senha}
-                onChange={(e) => setSenha(e.target.value)}
-                placeholder="sua senha"
-                required
-              />
-
-              <button
-                type="button"
-                onClick={() => setMostrarSenha((s) => !s)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-zinc-600 hover:text-zinc-900"
-                aria-label={mostrarSenha ? "Ocultar senha" : "Mostrar senha"}
-              >
-                {mostrarSenha ? "🙈" : "👁️"}
-              </button>
-            </div>
-
-            {/* ✅ Esqueci minha senha */}
-            <div className="mt-2 text-right">
-              <Link
-                href="/forgot-password"
-                className="text-sm font-semibold text-blue-700 hover:underline"
-              >
-                Esqueci minha senha
-              </Link>
-            </div>
+            <label className="text-sm font-semibold text-gray-700">Senha</label>
+            <input
+              value={senha}
+              onChange={(e) => setSenha(e.target.value)}
+              type="password"
+              placeholder="sua senha"
+              className="mt-2 w-full rounded-2xl border border-gray-200 px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+            />
           </div>
 
-          {erro && (
-            <div className="text-sm text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-xl">
-              {erro}
-            </div>
-          )}
+          <div className="flex items-center justify-end">
+            <Link
+              href="/forgot-password"
+              className="text-sm font-semibold text-blue-700 hover:underline"
+            >
+              Esqueci minha senha
+            </Link>
+          </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-xl bg-blue-700 text-white py-3 font-semibold hover:bg-blue-800 disabled:opacity-60"
+            className="w-full rounded-2xl bg-blue-600 py-4 font-extrabold text-white hover:bg-blue-700 transition disabled:opacity-70"
           >
             {loading ? "Entrando..." : "Entrar"}
           </button>
-        </form>
 
-        <p className="text-sm text-zinc-600 mt-5">
-          Ainda não tem conta?{" "}
-          <Link
-            className="font-semibold text-zinc-900 hover:underline"
-            href="/register"
-          >
-            Criar conta
-          </Link>
-        </p>
+          <p className="text-sm text-gray-600 text-center">
+            Ainda não tem conta?{" "}
+            <Link href="/register" className="font-bold text-blue-700 hover:underline">
+              Criar conta
+            </Link>
+          </p>
+        </form>
       </div>
     </main>
   );

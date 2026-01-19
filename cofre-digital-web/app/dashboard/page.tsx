@@ -44,78 +44,37 @@ type SearchResult =
     };
 
 const DEFAULT_FOLDERS: Array<Omit<Folder, "id" | "createdAt">> = [
-  {
-    title: "Bancos",
-    desc: "Contas bancárias, agência, pix, senhas",
-    icon: "🏦",
-    parentId: null,
-  },
-  {
-    title: "Contas a pagar",
-    desc: "Boletos, vencimentos e lembretes",
-    icon: "🧾",
-    parentId: null,
-  },
-  {
-    title: "Diversão",
-    desc: "Netflix, Spotify e assinaturas",
-    icon: "🎮",
-    parentId: null,
-  },
-  {
-    title: "Emails",
-    desc: "Emails, recuperação, códigos",
-    icon: "📧",
-    parentId: null,
-  },
-  {
-    title: "Certidões",
-    desc: "Certidão, RG, CPF, CNH e PDFs",
-    icon: "📜",
-    parentId: null,
-  },
-  {
-    title: "Cartório",
-    desc: "Registros e documentos cartoriais",
-    icon: "🏛️",
-    parentId: null,
-  },
-  {
-    title: "Escrituras",
-    desc: "Imóveis, contratos e anexos",
-    icon: "🏠",
-    parentId: null,
-  },
-  {
-    title: "Fotos",
-    desc: "Fotos importantes e arquivos pessoais",
-    icon: "📷",
-    parentId: null,
-  },
-  {
-    title: "Viagem",
-    desc: "Passagens, reservas, documentos",
-    icon: "✈️",
-    parentId: null,
-  },
-
-  // ✅ extras:
-  {
-    title: "Médico",
-    desc: "Exames, receitas, laudos e carteirinhas",
-    icon: "🩺",
-    parentId: null,
-  },
-  {
-    title: "Advogado",
-    desc: "Ações, processos e contratos",
-    icon: "⚖️",
-    parentId: null,
-  },
+  { title: "Bancos", desc: "Contas bancárias, agência, pix, senhas", icon: "🏦", parentId: null },
+  { title: "Contas a pagar", desc: "Boletos, vencimentos e lembretes", icon: "🧾", parentId: null },
+  { title: "Diversão", desc: "Netflix, Spotify e assinaturas", icon: "🎮", parentId: null },
+  { title: "Emails", desc: "Emails, recuperação, códigos", icon: "📧", parentId: null },
+  { title: "Certidões", desc: "Certidão, RG, CPF, CNH e PDFs", icon: "📜", parentId: null },
+  { title: "Cartório", desc: "Registros e documentos cartoriais", icon: "🏛️", parentId: null },
+  { title: "Escrituras", desc: "Imóveis, contratos e anexos", icon: "🏠", parentId: null },
+  { title: "Fotos", desc: "Fotos importantes e arquivos pessoais", icon: "📷", parentId: null },
+  { title: "Viagem", desc: "Passagens, reservas, documentos", icon: "✈️", parentId: null },
+  { title: "Médico", desc: "Exames, receitas, laudos e carteirinhas", icon: "🩺", parentId: null },
+  { title: "Advogado", desc: "Ações, processos e contratos", icon: "⚖️", parentId: null },
 ];
 
 function normalize(txt: string) {
   return (txt || "").toLowerCase().trim();
+}
+
+function hashColor(title: string) {
+  // gera uma "cor padrão" por nome (pra ficar lindo e não repetir)
+  const colors = [
+    "from-pink-500 to-rose-600",
+    "from-indigo-500 to-blue-600",
+    "from-emerald-500 to-teal-600",
+    "from-orange-500 to-amber-600",
+    "from-purple-500 to-fuchsia-600",
+    "from-cyan-500 to-sky-600",
+  ];
+
+  let sum = 0;
+  for (let i = 0; i < title.length; i++) sum += title.charCodeAt(i);
+  return colors[sum % colors.length];
 }
 
 export default function DashboardPage() {
@@ -268,7 +227,7 @@ export default function DashboardPage() {
 
         const pastaTitle = pastaData?.nome || pastaData?.title || "Pasta";
 
-        // 2.1) itens dentro da pasta principal
+        // itens dentro da pasta principal
         const itensSnap = await getDocs(
           query(
             collection(db, "users", uid, "pastas", pastaId, "itens"),
@@ -297,7 +256,7 @@ export default function DashboardPage() {
           }
         }
 
-        // 2.2) subpastas
+        // subpastas
         const subSnap = await getDocs(
           query(
             collection(db, "users", uid, "pastas", pastaId, "subpastas"),
@@ -320,7 +279,6 @@ export default function DashboardPage() {
             });
           }
 
-          // itens dentro da subpasta
           const itensSubSnap = await getDocs(
             query(
               collection(
@@ -371,7 +329,6 @@ export default function DashboardPage() {
     }
   }
 
-  // Delay pra pesquisa não travar
   useEffect(() => {
     const s = search.trim();
     if (!s) {
@@ -384,7 +341,6 @@ export default function DashboardPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search, uid]);
 
-  // ✅ abrir resultado
   function openResult(r: SearchResult) {
     if (r.kind === "folder") {
       router.push(`/pasta/${r.id}`);
@@ -396,7 +352,6 @@ export default function DashboardPage() {
       return;
     }
 
-    // item
     if (r.subId) {
       router.push(`/pasta/${r.pastaId}?sub=${r.subId}&item=${r.itemId}`);
     } else {
@@ -415,7 +370,7 @@ export default function DashboardPage() {
           </div>
 
           <div className="flex flex-wrap gap-3">
-            {/* ✅ FIX: Home agora vai para /dashboard */}
+            {/* ✅ Home agora fica preso no cofre */}
             <Link
               href="/dashboard"
               className="rounded-2xl border border-white/30 px-5 py-2 font-semibold hover:bg-white/10"
@@ -455,7 +410,6 @@ export default function DashboardPage() {
               )}
             </div>
 
-            {/* Resultados */}
             {searchResults.length > 0 && (
               <div className="mt-4 grid gap-2">
                 {searchResults.map((r, idx) => (
@@ -469,9 +423,7 @@ export default function DashboardPage() {
                         <b>
                           {r.icon || "📁"} {r.title}
                         </b>
-                        <div className="text-xs text-white/70">
-                          📁 Pasta principal
-                        </div>
+                        <div className="text-xs text-white/70">📁 Pasta principal</div>
                       </div>
                     )}
 
@@ -505,45 +457,56 @@ export default function DashboardPage() {
           </div>
         </section>
 
-        {/* Cards */}
-        <section className="mt-10 grid gap-6 md:grid-cols-3">
-          {loadingFolders && (
-            <div className="text-white/80">Carregando pastas...</div>
-          )}
+        {/* ✅ MENU PRINCIPAL EM BOTÕES */}
+        <section className="mt-10">
+          {loadingFolders && <div className="text-white/80">Carregando pastas...</div>}
 
           {!loadingFolders && filteredFolders.length === 0 && (
             <div className="text-white/80">Nenhuma pasta encontrada.</div>
           )}
 
-          {!loadingFolders &&
-            filteredFolders.map((c) => (
-              <div
-                key={c.id}
-                className="rounded-3xl bg-white/10 p-6 shadow-xl border border-white/10"
-              >
-                <h2 className="text-2xl font-bold flex items-center gap-2">
-                  <span>{c.icon || "📁"}</span> {c.title}
-                </h2>
-
-                <p className="mt-2 text-white/80">
-                  {c.desc || "Pasta do seu cofre digital."}
-                </p>
-
-                <Link
-                  href={`/pasta/${c.id}`}
-                  className="mt-6 inline-flex w-full items-center justify-center rounded-2xl bg-white px-6 py-3 font-bold text-blue-900 hover:bg-blue-50"
+          {!loadingFolders && (
+            <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3">
+              {filteredFolders.map((c) => (
+                <button
+                  key={c.id}
+                  onClick={() => router.push(`/pasta/${c.id}`)}
+                  className="group w-full rounded-3xl border border-white/10 bg-white/10 p-5 shadow-xl backdrop-blur-xl transition hover:scale-[1.02] hover:bg-white/15"
                 >
-                  Abrir
-                </Link>
-              </div>
-            ))}
+                  {/* Botão tipo “WEB BUTTON” */}
+                  <div
+                    className={`rounded-2xl bg-gradient-to-r ${hashColor(
+                      c.title
+                    )} px-6 py-6 text-center shadow-lg border border-white/10`}
+                  >
+                    <div className="text-5xl drop-shadow">{c.icon || "📁"}</div>
+                    <div className="mt-3 text-lg font-extrabold tracking-wide">
+                      {c.title}
+                    </div>
+                  </div>
+
+                  {/* Nome/descrição embaixo */}
+                  <div className="mt-3 text-left">
+                    <div className="text-sm text-white/90 font-bold">
+                      📌 {c.title}
+                    </div>
+                    <div className="text-xs text-white/70 line-clamp-2">
+                      {c.desc || "Pasta do seu cofre digital."}
+                    </div>
+                    <div className="mt-2 text-xs text-white/50 group-hover:text-white/80 transition">
+                      Clique para abrir →
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
         </section>
 
         {/* Info */}
         <section className="mt-10">
           <div className="rounded-3xl border border-white/10 bg-white/10 p-5 text-sm text-white/80">
-            ✅ Dica: dentro de cada pasta, você pode criar <b>subpastas</b> (ex:
-            Bancos → Nubank / Itaú).
+            ✅ Dica: dentro de cada pasta, você pode criar <b>subpastas</b> (ex: Bancos → Nubank / Itaú).
           </div>
         </section>
       </div>
