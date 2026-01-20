@@ -62,7 +62,7 @@ export default function LoginPage() {
       }
 
       // 4) Redirecionar para o dashboard
-      router.replace("/dashboard");
+      window.location.href = "/dashboard";
     } catch (err: any) {
       console.error(err);
       alert(err?.message || "Erro ao entrar. Tente novamente.");
