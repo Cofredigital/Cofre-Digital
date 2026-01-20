@@ -1,7 +1,7 @@
 // app/api/folders/route.ts
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { getAdminAuth, getAdminDb } from "@/lib/firebaseAdmin";
+import { adminAuth, adminDb } from "@/lib/firebaseAdmin";
 
 const SESSION_COOKIE_NAME = "session";
 
@@ -13,7 +13,7 @@ async function getUidFromSessionCookie() {
   }
 
   try {
-    const decoded = await getAdminAuth().verifySessionCookie(sessionCookie, true);
+    const decoded = await adminAuth.verifySessionCookie(sessionCookie, true);
     return decoded.uid;
   } catch (e) {
     return null;
@@ -27,9 +27,7 @@ export async function GET() {
     return NextResponse.json({ ok: false, error: "Not logged" }, { status: 401 });
   }
 
-  const db = getAdminDb();
-
-  const snap = await db
+  const snap = await adminDb
     .collection("users")
     .doc(uid)
     .collection("folders")
@@ -60,9 +58,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const db = getAdminDb();
-
-  const docRef = await db
+  const docRef = await adminDb
     .collection("users")
     .doc(uid)
     .collection("folders")
