@@ -1,29 +1,26 @@
-// app/api/folders/seed/route.ts
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { adminAuth, adminDb } from "@/lib/firebaseAdmin";
-
-const SESSION_COOKIE_NAME = "cofre_session";
+import { SESSION_COOKIE_NAME } from "@/lib/session";
 
 const DEFAULT_FOLDERS = [
-  { name: "Bancos e cartões", icon: "🏦", color: "blue" },
-  { name: "Contas a pagar", icon: "💳", color: "blue" },
-  { name: "Documentos pessoais", icon: "🧾", color: "blue" },
-  { name: "Cartório e certidões", icon: "🏛️", color: "blue" },
-  { name: "Saúde e médicos", icon: "🏥", color: "blue" },
-  { name: "Casa e imóveis", icon: "🏠", color: "blue" },
-  { name: "Veículos", icon: "🚗", color: "blue" },
-  { name: "Streaming e assinaturas", icon: "📺", color: "blue" },
-  { name: "Trabalho e renda", icon: "💼", color: "blue" },
-  { name: "Senhas e acessos", icon: "🔐", color: "gold" },
-  { name: "Igreja", icon: "🙏", color: "gold" },
+  { name: "Bancos", icon: "🏦", color: "blue" },
+  { name: "Escrituras", icon: "📜", color: "gold" },
+  { name: "Cartório", icon: "🏛️", color: "gray" },
+  { name: "Documentos", icon: "📁", color: "blue" },
+  { name: "Médicos", icon: "🩺", color: "red" },
+  { name: "Impostos", icon: "🧾", color: "green" },
+  { name: "Casa", icon: "🏠", color: "gold" },
+  { name: "Trabalho", icon: "💼", color: "blue" },
+  { name: "Igreja", icon: "⛪", color: "gold" },
+  { name: "Diversão", icon: "🎮", color: "purple" },
 ];
 
 export async function POST() {
   try {
-    // ✅ Next.js mais novo: cookies() é async
+    // ✅ Next.js novo: cookies() é async
     const cookieStore = await cookies();
-const sessionCookie = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+    const sessionCookie = cookieStore.get(SESSION_COOKIE_NAME)?.value;
 
     if (!sessionCookie) {
       return NextResponse.json(
@@ -35,34 +32,19 @@ const sessionCookie = cookieStore.get(SESSION_COOKIE_NAME)?.value;
     const decoded = await adminAuth.verifySessionCookie(sessionCookie, true);
     const uid = decoded.uid;
 
-    // ✅ se já tiver pastas, não cria de novo
-    const existingSnap = await adminDb
-      .collection("users")
-      .doc(uid)
-      .collection("folders")
-      .limit(1)
-      .get();
+    const foldersRef = adminDb.collection("users").doc(uid).collection("folders");
 
-    if (!existingSnap.empty) {
-      return NextResponse.json({
-        ok: true,
-        seeded: false,
-        message: "already-has-folders",
-      });
+    const existing = await foldersRef.limit(1).get();
+    if (!existing.empty) {
+      return NextResponse.json({ ok: true, alreadySeeded: true });
     }
 
-    // ✅ criar pastas padrão
     const batch = adminDb.batch();
     const now = new Date();
 
     DEFAULT_FOLDERS.forEach((f, index) => {
-      const ref = adminDb
-        .collection("users")
-        .doc(uid)
-        .collection("folders")
-        .doc();
-
-      batch.set(ref, {
+      const docRef = foldersRef.doc();
+      batch.set(docRef, {
         name: f.name,
         icon: f.icon,
         color: f.color,
