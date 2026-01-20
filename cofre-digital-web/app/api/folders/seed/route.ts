@@ -23,7 +23,7 @@ export async function POST() {
   try {
     // ✅ Next.js mais novo: cookies() é async
     const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+const sessionCookie = cookieStore.get(SESSION_COOKIE_NAME)?.value;
 
     if (!sessionCookie) {
       return NextResponse.json(
