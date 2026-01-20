@@ -21,15 +21,21 @@ const DEFAULT_FOLDERS = [
 
 export async function POST() {
   try {
-    const sessionCookie = cookies().get(SESSION_COOKIE_NAME)?.value;
+    // ✅ Next.js mais novo: cookies() é async
+    const cookieStore = await cookies();
+    const sessionCookie = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+
     if (!sessionCookie) {
-      return NextResponse.json({ ok: false, error: "not-authenticated" }, { status: 401 });
+      return NextResponse.json(
+        { ok: false, error: "not-authenticated" },
+        { status: 401 }
+      );
     }
 
     const decoded = await adminAuth.verifySessionCookie(sessionCookie, true);
     const uid = decoded.uid;
 
-    // Se já tiver pastas, não faz nada
+    // ✅ se já tiver pastas, não cria de novo
     const existingSnap = await adminDb
       .collection("users")
       .doc(uid)
@@ -38,15 +44,24 @@ export async function POST() {
       .get();
 
     if (!existingSnap.empty) {
-      return NextResponse.json({ ok: true, seeded: false, message: "already-has-folders" });
+      return NextResponse.json({
+        ok: true,
+        seeded: false,
+        message: "already-has-folders",
+      });
     }
 
-    // Criar padrão
+    // ✅ criar pastas padrão
     const batch = adminDb.batch();
     const now = new Date();
 
     DEFAULT_FOLDERS.forEach((f, index) => {
-      const ref = adminDb.collection("users").doc(uid).collection("folders").doc();
+      const ref = adminDb
+        .collection("users")
+        .doc(uid)
+        .collection("folders")
+        .doc();
+
       batch.set(ref, {
         name: f.name,
         icon: f.icon,
@@ -58,9 +73,16 @@ export async function POST() {
 
     await batch.commit();
 
-    return NextResponse.json({ ok: true, seeded: true, count: DEFAULT_FOLDERS.length });
+    return NextResponse.json({
+      ok: true,
+      seeded: true,
+      count: DEFAULT_FOLDERS.length,
+    });
   } catch (err: any) {
     console.error("Seed folders error:", err);
-    return NextResponse.json({ ok: false, error: err?.message ?? "seed-error" }, { status: 500 });
+    return NextResponse.json(
+      { ok: false, error: err?.message ?? "seed-error" },
+      { status: 500 }
+    );
   }
 }
