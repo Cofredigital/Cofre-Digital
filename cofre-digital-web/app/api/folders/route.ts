@@ -1,71 +1,85 @@
-// app/api/folders/route.ts
+// cofre-digital-web/app/api/folders/seed/route.ts
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { adminAuth, adminDb } from "@/lib/firebaseAdmin";
 
-const SESSION_COOKIE_NAME = "session";
+const SESSION_COOKIE_NAME = "cofre_session";
 
-async function getUidFromSessionCookie() {
-  const sessionCookie = (await cookies()).get(SESSION_COOKIE_NAME)?.value;
+type DefaultFolder = {
+  name: string;
+  icon: string;
+  color: string;
+};
 
-  if (!sessionCookie) {
-    return null;
-  }
+const DEFAULT_FOLDERS: DefaultFolder[] = [
+  { name: "Bancos", icon: "bank", color: "blue" },
+  { name: "Igreja", icon: "church", color: "gold" },
+  { name: "Escrituras", icon: "book", color: "blue" },
+  { name: "Cartório", icon: "file", color: "gold" },
+  { name: "Saúde / Médicos", icon: "health", color: "blue" },
+  { name: "Contas a pagar", icon: "bill", color: "gold" },
+  { name: "Senhas", icon: "lock", color: "blue" },
+  { name: "Trabalho", icon: "briefcase", color: "gold" },
+  { name: "Veículos", icon: "car", color: "blue" },
+  { name: "Família", icon: "family", color: "gold" },
+  { name: "Impostos", icon: "tax", color: "blue" },
+];
 
+export async function POST() {
   try {
+    // ✅ Next.js novo: cookies() pode retornar Promise
+    const cookieStore = await cookies();
+    const sessionCookie = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+
+    if (!sessionCookie) {
+      return NextResponse.json(
+        { ok: false, error: "not-authenticated" },
+        { status: 401 }
+      );
+    }
+
+    // ✅ valida sessão no Firebase Admin
     const decoded = await adminAuth.verifySessionCookie(sessionCookie, true);
-    return decoded.uid;
-  } catch (e) {
-    return null;
-  }
-}
+    const uid = decoded.uid;
 
-// ✅ GET = listar pastas do usuário
-export async function GET() {
-  const uid = await getUidFromSessionCookie();
-  if (!uid) {
-    return NextResponse.json({ ok: false, error: "Not logged" }, { status: 401 });
-  }
+    // ✅ referência onde ficam as pastas do usuário
+    const foldersCol = adminDb.collection("users").doc(uid).collection("folders");
 
-  const snap = await adminDb
-    .collection("users")
-    .doc(uid)
-    .collection("folders")
-    .orderBy("createdAt", "desc")
-    .get();
+    // ✅ se já tem pasta, não recria
+    const existing = await foldersCol.limit(1).get();
+    if (!existing.empty) {
+      return NextResponse.json({ ok: true, seeded: false, reason: "already-has-folders" });
+    }
 
-  const folders = snap.docs.map((doc) => ({
-    id: doc.id,
-    ...doc.data(),
-  }));
+    // ✅ cria padrão
+    const now = Date.now();
+    const batch = adminDb.batch();
 
-  return NextResponse.json({ ok: true, folders });
-}
+    DEFAULT_FOLDERS.forEach((f, index) => {
+      const ref = foldersCol.doc();
 
-// ✅ POST = criar pasta
-export async function POST(req: Request) {
-  const uid = await getUidFromSessionCookie();
-  if (!uid) {
-    return NextResponse.json({ ok: false, error: "Not logged" }, { status: 401 });
-  }
-
-  const { name } = await req.json();
-
-  if (!name || typeof name !== "string") {
-    return NextResponse.json(
-      { ok: false, error: "Missing folder name" },
-      { status: 400 }
-    );
-  }
-
-  const docRef = await adminDb
-    .collection("users")
-    .doc(uid)
-    .collection("folders")
-    .add({
-      name: name.trim(),
-      createdAt: new Date(),
+      batch.set(ref, {
+        name: f.name,
+        icon: f.icon,
+        color: f.color,
+        createdAt: now,
+        order: index,
+        isDefault: true,
+      });
     });
 
-  return NextResponse.json({ ok: true, id: docRef.id });
+    await batch.commit();
+
+    return NextResponse.json({
+      ok: true,
+      seeded: true,
+      count: DEFAULT_FOLDERS.length,
+    });
+  } catch (err: any) {
+    console.error("Seed folders error:", err);
+    return NextResponse.json(
+      { ok: false, error: err?.message ?? "seed-error" },
+      { status: 500 }
+    );
+  }
 }
