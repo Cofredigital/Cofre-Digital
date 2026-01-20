@@ -25,6 +25,13 @@ const DEFAULT_FOLDERS: DefaultFolder[] = [
   { name: "Impostos", icon: "tax", color: "blue" },
 ];
 
+// ✅ IMPORTANTE:
+// Se você acessar no navegador, ele usa GET.
+// Então fazemos GET chamar POST para rodar igual.
+export async function GET() {
+  return POST();
+}
+
 export async function POST() {
   try {
     // ✅ Next.js novo: cookies() pode retornar Promise
@@ -48,7 +55,11 @@ export async function POST() {
     // ✅ se já tem pasta, não recria
     const existing = await foldersCol.limit(1).get();
     if (!existing.empty) {
-      return NextResponse.json({ ok: true, seeded: false, reason: "already-has-folders" });
+      return NextResponse.json({
+        ok: true,
+        seeded: false,
+        reason: "already-has-folders",
+      });
     }
 
     // ✅ cria padrão
