@@ -1,28 +1,39 @@
-import admin from "firebase-admin";
+// lib/firebaseAdmin.ts
+import * as admin from "firebase-admin";
 
-function getAdminCredentials() {
-  const json = process.env.FIREBASE_ADMIN_CREDENTIALS_JSON;
+function getPrivateKey() {
+  // Vercel salva o \n como texto, então corrigimos
+  const key = process.env.FIREBASE_PRIVATE_KEY;
+  if (!key) return undefined;
+  return key.replace(/\\n/g, "\n");
+}
 
-  if (!json) {
+export function getAdminApp() {
+  if (admin.apps.length) return admin.app();
+
+  const projectId = process.env.FIREBASE_PROJECT_ID;
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+  const privateKey = getPrivateKey();
+
+  if (!projectId || !clientEmail || !privateKey) {
     throw new Error(
-      "FIREBASE_ADMIN_CREDENTIALS_JSON não configurado nas Environment Variables"
+      "Missing env vars: FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY"
     );
   }
 
-  try {
-    const serviceAccount = JSON.parse(json);
-    return admin.credential.cert(serviceAccount);
-  } catch (e) {
-    throw new Error("FIREBASE_ADMIN_CREDENTIALS_JSON inválido (falha ao ler JSON)");
-  }
-}
-
-// Evita reinicializar no hot-reload
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: getAdminCredentials(),
+  return admin.initializeApp({
+    credential: admin.credential.cert({
+      projectId,
+      clientEmail,
+      privateKey,
+    }),
   });
 }
 
-export const adminDb = admin.firestore();
-export const adminAuth = admin.auth();
+export function getAdminAuth() {
+  return getAdminApp().auth();
+}
+
+export function getAdminDb() {
+  return getAdminApp().firestore();
+}

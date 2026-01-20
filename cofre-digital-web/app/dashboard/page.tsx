@@ -1,515 +1,136 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { onAuthStateChanged, signOut } from "firebase/auth";
-import {
-  addDoc,
-  collection,
-  getDocs,
-  orderBy,
-  query,
-  serverTimestamp,
-} from "firebase/firestore";
-import { auth, db } from "@/lib/firebase";
 
 type Folder = {
   id: string;
-  title: string;
-  desc?: string;
-  icon?: string;
-  parentId: string | null;
+  name?: string;
   createdAt?: any;
 };
 
-type SearchResult =
-  | { kind: "folder"; id: string; title: string; icon?: string }
-  | {
-      kind: "subfolder";
-      pastaId: string;
-      subId: string;
-      nome: string;
-      pastaTitle: string;
-    }
-  | {
-      kind: "item";
-      pastaId: string;
-      subId?: string;
-      pastaTitle: string;
-      subTitle?: string;
-      itemId: string;
-      titulo: string;
-      tipo: "nota" | "senha" | "link";
-    };
-
-const DEFAULT_FOLDERS: Array<Omit<Folder, "id" | "createdAt">> = [
-  { title: "Bancos", desc: "Contas bancárias, agência, pix, senhas", icon: "🏦", parentId: null },
-  { title: "Contas a pagar", desc: "Boletos, vencimentos e lembretes", icon: "🧾", parentId: null },
-  { title: "Diversão", desc: "Netflix, Spotify e assinaturas", icon: "🎮", parentId: null },
-  { title: "Emails", desc: "Emails, recuperação, códigos", icon: "📧", parentId: null },
-  { title: "Certidões", desc: "Certidão, RG, CPF, CNH e PDFs", icon: "📜", parentId: null },
-  { title: "Cartório", desc: "Registros e documentos cartoriais", icon: "🏛️", parentId: null },
-  { title: "Escrituras", desc: "Imóveis, contratos e anexos", icon: "🏠", parentId: null },
-  { title: "Fotos", desc: "Fotos importantes e arquivos pessoais", icon: "📷", parentId: null },
-  { title: "Viagem", desc: "Passagens, reservas, documentos", icon: "✈️", parentId: null },
-  { title: "Médico", desc: "Exames, receitas, laudos e carteirinhas", icon: "🩺", parentId: null },
-  { title: "Advogado", desc: "Ações, processos e contratos", icon: "⚖️", parentId: null },
-];
-
-function normalize(txt: string) {
-  return (txt || "").toLowerCase().trim();
-}
-
-function hashColor(title: string) {
-  // gera uma "cor padrão" por nome (pra ficar lindo e não repetir)
-  const colors = [
-    "from-pink-500 to-rose-600",
-    "from-indigo-500 to-blue-600",
-    "from-emerald-500 to-teal-600",
-    "from-orange-500 to-amber-600",
-    "from-purple-500 to-fuchsia-600",
-    "from-cyan-500 to-sky-600",
-  ];
-
-  let sum = 0;
-  for (let i = 0; i < title.length; i++) sum += title.charCodeAt(i);
-  return colors[sum % colors.length];
-}
-
 export default function DashboardPage() {
-  const router = useRouter();
-  const [email, setEmail] = useState<string>("");
-  const [uid, setUid] = useState<string>("");
-
   const [folders, setFolders] = useState<Folder[]>([]);
-  const [loadingFolders, setLoadingFolders] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
 
-  // 🔎 Pesquisa global
-  const [search, setSearch] = useState("");
-  const [searchLoading, setSearchLoading] = useState(false);
-  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  async function loadFolders() {
+    try {
+      setLoading(true);
 
-  async function seedDefaultFoldersIfEmpty(userId: string) {
-    const colRef = collection(db, "users", userId, "folders");
-    const snap = await getDocs(colRef);
-    if (!snap.empty) return;
-
-    for (const f of DEFAULT_FOLDERS) {
-      await addDoc(colRef, {
-        title: f.title,
-        desc: f.desc || "",
-        icon: f.icon || "📁",
-        parentId: null,
-        createdAt: serverTimestamp(),
+      const resp = await fetch("/api/folders", {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
       });
-    }
-  }
 
-  async function loadFolders(userId: string) {
-    setLoadingFolders(true);
-    const colRef = collection(db, "users", userId, "folders");
-    const q = query(colRef, orderBy("createdAt", "asc"));
-    const snap = await getDocs(q);
+      const data = await resp.json();
 
-    const list: Folder[] = snap.docs.map((d) => {
-      const data = d.data() as any;
-      return {
-        id: d.id,
-        title: data.title,
-        desc: data.desc || "",
-        icon: data.icon || "📁",
-        parentId: data.parentId ?? null,
-        createdAt: data.createdAt,
-      };
-    });
-
-    setFolders(list.filter((x) => x.parentId === null));
-    setLoadingFolders(false);
-  }
-
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (user) => {
-      if (!user) {
-        router.push("/login");
+      if (!resp.ok) {
+        console.error("Erro /api/folders:", data);
+        setFolders([]);
         return;
       }
 
-      setEmail(user.email || "");
-      setUid(user.uid);
-
-      await seedDefaultFoldersIfEmpty(user.uid);
-      await loadFolders(user.uid);
-    });
-
-    return () => unsub();
-  }, [router]);
-
-  const filteredFolders = useMemo(() => {
-    const s = normalize(search);
-    if (!s) return folders;
-
-    return folders.filter((f) => {
-      const t = normalize(f.title);
-      const d = normalize(f.desc || "");
-      return t.includes(s) || d.includes(s);
-    });
-  }, [folders, search]);
-
-  async function handleLogout() {
-    try {
-      await signOut(auth);
-      await fetch("/api/session", { method: "DELETE" });
-      router.push("/login");
-    } catch (e) {
-      alert("Erro ao sair.");
-    }
-  }
-
-  async function createFolder() {
-    try {
-      if (!uid) return;
-
-      const title = prompt("Nome da nova pasta:");
-      if (!title || !title.trim()) return;
-
-      const icon = prompt("Emoji da pasta (ex: 🩺 ⚖️ 📁):") || "📁";
-
-      const colRef = collection(db, "users", uid, "folders");
-      await addDoc(colRef, {
-        title: title.trim(),
-        desc: "",
-        icon: icon.trim() || "📁",
-        parentId: null,
-        createdAt: serverTimestamp(),
-      });
-
-      await loadFolders(uid);
-    } catch (e) {
-      alert("Erro ao criar pasta.");
-    }
-  }
-
-  // 🔥 PESQUISA GLOBAL
-  async function runGlobalSearch(q: string) {
-    const term = normalize(q);
-    if (!uid || !term) {
-      setSearchResults([]);
-      return;
-    }
-
-    setSearchLoading(true);
-
-    try {
-      const results: SearchResult[] = [];
-
-      // 1) Pastas principais do dashboard (folders)
-      for (const f of folders) {
-        if (
-          normalize(f.title).includes(term) ||
-          normalize(f.desc || "").includes(term)
-        ) {
-          results.push({
-            kind: "folder",
-            id: f.id,
-            title: f.title,
-            icon: f.icon,
-          });
-        }
-      }
-
-      // 2) Cofre real: users/{uid}/pastas/{pastaId}
-      const pastaSnap = await getDocs(collection(db, "users", uid, "pastas"));
-
-      for (const pastaDoc of pastaSnap.docs) {
-        const pastaId = pastaDoc.id;
-        const pastaData = pastaDoc.data() as any;
-
-        const pastaTitle = pastaData?.nome || pastaData?.title || "Pasta";
-
-        // itens dentro da pasta principal
-        const itensSnap = await getDocs(
-          query(
-            collection(db, "users", uid, "pastas", pastaId, "itens"),
-            orderBy("criadoEm", "desc")
-          )
-        );
-
-        for (const itDoc of itensSnap.docs) {
-          const it = itDoc.data() as any;
-          const titulo = it?.titulo || "";
-          const conteudo = it?.conteudo || "";
-          const tipo = (it?.tipo || "nota") as "nota" | "senha" | "link";
-
-          if (
-            normalize(titulo).includes(term) ||
-            normalize(conteudo).includes(term)
-          ) {
-            results.push({
-              kind: "item",
-              pastaId,
-              pastaTitle,
-              itemId: itDoc.id,
-              titulo,
-              tipo,
-            });
-          }
-        }
-
-        // subpastas
-        const subSnap = await getDocs(
-          query(
-            collection(db, "users", uid, "pastas", pastaId, "subpastas"),
-            orderBy("criadoEm", "desc")
-          )
-        );
-
-        for (const subDoc of subSnap.docs) {
-          const subId = subDoc.id;
-          const subData = subDoc.data() as any;
-          const subNome = subData?.nome || "Subpasta";
-
-          if (normalize(subNome).includes(term)) {
-            results.push({
-              kind: "subfolder",
-              pastaId,
-              subId,
-              nome: subNome,
-              pastaTitle,
-            });
-          }
-
-          const itensSubSnap = await getDocs(
-            query(
-              collection(
-                db,
-                "users",
-                uid,
-                "pastas",
-                pastaId,
-                "subpastas",
-                subId,
-                "itens"
-              ),
-              orderBy("criadoEm", "desc")
-            )
-          );
-
-          for (const itSubDoc of itensSubSnap.docs) {
-            const it = itSubDoc.data() as any;
-            const titulo = it?.titulo || "";
-            const conteudo = it?.conteudo || "";
-            const tipo = (it?.tipo || "nota") as "nota" | "senha" | "link";
-
-            if (
-              normalize(titulo).includes(term) ||
-              normalize(conteudo).includes(term)
-            ) {
-              results.push({
-                kind: "item",
-                pastaId,
-                subId,
-                pastaTitle,
-                subTitle: subNome,
-                itemId: itSubDoc.id,
-                titulo,
-                tipo,
-              });
-            }
-          }
-        }
-      }
-
-      setSearchResults(results.slice(0, 20));
+      setFolders(data.folders || []);
     } catch (err) {
-      console.log("ERRO pesquisa:", err);
-      setSearchResults([]);
+      console.error("Erro carregando pastas:", err);
+      setFolders([]);
     } finally {
-      setSearchLoading(false);
+      setLoading(false);
     }
   }
 
   useEffect(() => {
-    const s = search.trim();
-    if (!s) {
-      setSearchResults([]);
-      return;
-    }
+    loadFolders();
+  }, []);
 
-    const t = setTimeout(() => runGlobalSearch(s), 450);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, uid]);
+  async function handleCreateFolder() {
+    const name = prompt("Nome da nova pasta:");
+    if (!name || !name.trim()) return;
 
-  function openResult(r: SearchResult) {
-    if (r.kind === "folder") {
-      router.push(`/pasta/${r.id}`);
-      return;
-    }
+    try {
+      setCreating(true);
 
-    if (r.kind === "subfolder") {
-      router.push(`/pasta/${r.pastaId}?sub=${r.subId}`);
-      return;
-    }
+      const resp = await fetch("/api/folders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
 
-    if (r.subId) {
-      router.push(`/pasta/${r.pastaId}?sub=${r.subId}&item=${r.itemId}`);
-    } else {
-      router.push(`/pasta/${r.pastaId}?item=${r.itemId}`);
+      const data = await resp.json();
+
+      if (!resp.ok) {
+        console.error("Erro criando pasta:", data);
+        alert(data?.error || "Erro ao criar pasta.");
+        return;
+      }
+
+      await loadFolders();
+    } catch (err) {
+      console.error(err);
+      alert("Erro ao criar pasta.");
+    } finally {
+      setCreating(false);
     }
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-blue-800 to-blue-950 text-white">
-      <div className="mx-auto max-w-6xl px-6 py-10">
-        {/* Header */}
-        <header className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h1 className="text-4xl font-extrabold">Meu Cofre</h1>
-            <p className="text-sm text-white/80">Bem-vindo, {email}</p>
-          </div>
+    <div className="w-full">
+      {/* CABEÇALHO */}
+      <div className="mb-6 flex items-center justify-between gap-3">
+        <div>
+          <h1 className="text-3xl font-extrabold">Meu Cofre</h1>
+          <p className="text-white/70 text-sm">
+            Suas pastas aparecerão abaixo (uma do lado da outra).
+          </p>
+        </div>
 
-          <div className="flex flex-wrap gap-3">
-            {/* ✅ Home agora fica preso no cofre */}
-            <Link
-              href="/dashboard"
-              className="rounded-2xl border border-white/30 px-5 py-2 font-semibold hover:bg-white/10"
-            >
-              Home
-            </Link>
-
-            <button
-              onClick={createFolder}
-              className="rounded-2xl bg-emerald-500 px-5 py-2 font-extrabold text-white hover:bg-emerald-600"
-            >
-              + Nova pasta
-            </button>
-
-            <button
-              onClick={handleLogout}
-              className="rounded-2xl bg-white px-5 py-2 font-semibold text-blue-900 hover:bg-blue-50"
-            >
-              Sair
-            </button>
-          </div>
-        </header>
-
-        {/* 🔎 Pesquisa Global */}
-        <section className="mt-8">
-          <div className="rounded-3xl border border-white/10 bg-white/10 p-4 backdrop-blur-xl shadow-xl">
-            <div className="flex items-center gap-3">
-              <div className="text-xl">🔎</div>
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Pesquisar no cofre (pastas, subpastas e itens)..."
-                className="w-full bg-transparent outline-none text-white placeholder:text-white/60"
-              />
-              {searchLoading && (
-                <div className="text-xs text-white/70">pesquisando...</div>
-              )}
-            </div>
-
-            {searchResults.length > 0 && (
-              <div className="mt-4 grid gap-2">
-                {searchResults.map((r, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => openResult(r)}
-                    className="w-full text-left rounded-2xl border border-white/10 bg-black/20 hover:bg-black/30 px-4 py-3 transition"
-                  >
-                    {r.kind === "folder" && (
-                      <div className="text-sm">
-                        <b>
-                          {r.icon || "📁"} {r.title}
-                        </b>
-                        <div className="text-xs text-white/70">📁 Pasta principal</div>
-                      </div>
-                    )}
-
-                    {r.kind === "subfolder" && (
-                      <div className="text-sm">
-                        <b>📂 {r.nome}</b>
-                        <div className="text-xs text-white/70">
-                          📁 {r.pastaTitle} → 📂 {r.nome}
-                        </div>
-                      </div>
-                    )}
-
-                    {r.kind === "item" && (
-                      <div className="text-sm">
-                        <b>
-                          {r.tipo === "nota" && "📝 "}
-                          {r.tipo === "senha" && "🔑 "}
-                          {r.tipo === "link" && "🔗 "}
-                          {r.titulo}
-                        </b>
-                        <div className="text-xs text-white/70">
-                          📁 {r.pastaTitle}
-                          {r.subTitle ? ` → 📂 ${r.subTitle}` : ""}
-                        </div>
-                      </div>
-                    )}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </section>
-
-        {/* ✅ MENU PRINCIPAL EM BOTÕES */}
-        <section className="mt-10">
-          {loadingFolders && <div className="text-white/80">Carregando pastas...</div>}
-
-          {!loadingFolders && filteredFolders.length === 0 && (
-            <div className="text-white/80">Nenhuma pasta encontrada.</div>
-          )}
-
-          {!loadingFolders && (
-            <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3">
-              {filteredFolders.map((c) => (
-                <button
-                  key={c.id}
-                  onClick={() => router.push(`/pasta/${c.id}`)}
-                  className="group w-full rounded-3xl border border-white/10 bg-white/10 p-5 shadow-xl backdrop-blur-xl transition hover:scale-[1.02] hover:bg-white/15"
-                >
-                  {/* Botão tipo “WEB BUTTON” */}
-                  <div
-                    className={`rounded-2xl bg-gradient-to-r ${hashColor(
-                      c.title
-                    )} px-6 py-6 text-center shadow-lg border border-white/10`}
-                  >
-                    <div className="text-5xl drop-shadow">{c.icon || "📁"}</div>
-                    <div className="mt-3 text-lg font-extrabold tracking-wide">
-                      {c.title}
-                    </div>
-                  </div>
-
-                  {/* Nome/descrição embaixo */}
-                  <div className="mt-3 text-left">
-                    <div className="text-sm text-white/90 font-bold">
-                      📌 {c.title}
-                    </div>
-                    <div className="text-xs text-white/70 line-clamp-2">
-                      {c.desc || "Pasta do seu cofre digital."}
-                    </div>
-                    <div className="mt-2 text-xs text-white/50 group-hover:text-white/80 transition">
-                      Clique para abrir →
-                    </div>
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-        </section>
-
-        {/* Info */}
-        <section className="mt-10">
-          <div className="rounded-3xl border border-white/10 bg-white/10 p-5 text-sm text-white/80">
-            ✅ Dica: dentro de cada pasta, você pode criar <b>subpastas</b> (ex: Bancos → Nubank / Itaú).
-          </div>
-        </section>
+        <button
+          onClick={handleCreateFolder}
+          disabled={creating}
+          className="rounded-2xl bg-emerald-400 px-5 py-3 font-extrabold text-emerald-950 hover:bg-emerald-300 transition disabled:opacity-60"
+        >
+          {creating ? "Criando..." : "+ Nova pasta"}
+        </button>
       </div>
-    </main>
+
+      {/* LISTA */}
+      {loading ? (
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
+          Carregando pastas...
+        </div>
+      ) : folders.length === 0 ? (
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
+          <p className="font-bold">Nenhuma pasta encontrada.</p>
+          <p className="text-white/70 text-sm mt-1">
+            Clique em <b>+ Nova pasta</b> para criar sua primeira pasta.
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {folders.map((folder) => (
+            <Link
+              key={folder.id}
+              href={`/pasta/${folder.id}`}
+              className="rounded-2xl border border-white/10 bg-white/5 p-5 shadow-sm hover:bg-white/10 transition"
+            >
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-white/10 flex items-center justify-center text-xl">
+                  📁
+                </div>
+                <div>
+                  <div className="font-extrabold text-lg">
+                    {folder.name || "Sem nome"}
+                  </div>
+                  <div className="text-white/60 text-xs">
+                    ID: {folder.id}
+                  </div>
+                </div>
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

@@ -1,33 +1,13 @@
+// app/api/session/route.ts
 import { NextResponse } from "next/server";
-import admin from "firebase-admin";
+import { getAdminAuth } from "@/lib/firebaseAdmin";
 
-function initAdmin() {
-  if (admin.apps.length) return;
-
-  const json = process.env.FIREBASE_ADMIN_CREDENTIALS_JSON;
-
-  if (!json) {
-    throw new Error("Missing FIREBASE_ADMIN_CREDENTIALS_JSON");
-  }
-
-  const serviceAccount = JSON.parse(json);
-
-  // ✅ garante quebras de linha do private_key
-  if (serviceAccount.private_key) {
-    serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, "\n");
-  }
-
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-  });
-}
+const SESSION_COOKIE_NAME = "session";
+const SESSION_EXPIRES_DAYS = 7;
 
 export async function POST(req: Request) {
   try {
-    initAdmin();
-
-    const body = await req.json().catch(() => null);
-    const idToken = body?.idToken;
+    const { idToken } = await req.json();
 
     if (!idToken) {
       return NextResponse.json(
@@ -36,17 +16,20 @@ export async function POST(req: Request) {
       );
     }
 
-    // duração da sessão: 5 dias
-    const expiresIn = 60 * 60 * 24 * 5 * 1000;
+    // ✅ Valida o token e cria cookie de sessão
+    const auth = getAdminAuth();
 
-    // ✅ cria o cookie real de sessão do Firebase
-    const sessionCookie = await admin
-      .auth()
-      .createSessionCookie(idToken, { expiresIn });
+    // (Opcional) valida o token antes de criar sessão
+    await auth.verifyIdToken(idToken);
+
+    const expiresIn = SESSION_EXPIRES_DAYS * 24 * 60 * 60 * 1000; // ms
+    const sessionCookie = await auth.createSessionCookie(idToken, {
+      expiresIn,
+    });
 
     const res = NextResponse.json({ ok: true });
 
-    res.cookies.set("session", sessionCookie, {
+    res.cookies.set(SESSION_COOKIE_NAME, sessionCookie, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
@@ -57,21 +40,23 @@ export async function POST(req: Request) {
     return res;
   } catch (err: any) {
     console.error("POST /api/session error:", err);
+
     return NextResponse.json(
-      { ok: false, error: err?.message || "Session error" },
-      { status: 500 }
+      { ok: false, error: "Erro ao criar sessão." },
+      { status: 400 }
     );
   }
 }
 
 export async function GET() {
+  // Só pra debug (rota existe)
   return NextResponse.json({ ok: true });
 }
 
 export async function DELETE() {
   const res = NextResponse.json({ ok: true });
 
-  res.cookies.set("session", "", {
+  res.cookies.set(SESSION_COOKIE_NAME, "", {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
