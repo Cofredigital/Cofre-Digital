@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { adminAuth, adminDb } from "@/lib/firebaseAdmin";
 
-const SESSION_COOKIE_NAME = "cofre_session";
+const SESSION_COOKIE_NAME = "session";
 
 type DefaultFolder = {
   name: string;
