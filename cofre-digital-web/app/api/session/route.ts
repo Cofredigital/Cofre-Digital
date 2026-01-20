@@ -1,6 +1,6 @@
 // app/api/session/route.ts
 import { NextResponse } from "next/server";
-import { getAdminAuth } from "@/lib/firebaseAdmin";
+import { adminAuth } from "@/lib/firebaseAdmin";
 
 const SESSION_COOKIE_NAME = "session";
 const SESSION_EXPIRES_DAYS = 7;
@@ -16,14 +16,11 @@ export async function POST(req: Request) {
       );
     }
 
-    // ✅ Valida o token e cria cookie de sessão
-    const auth = getAdminAuth();
-
-    // (Opcional) valida o token antes de criar sessão
-    await auth.verifyIdToken(idToken);
+    // ✅ (Opcional) valida o token antes de criar sessão
+    await adminAuth.verifyIdToken(idToken);
 
     const expiresIn = SESSION_EXPIRES_DAYS * 24 * 60 * 60 * 1000; // ms
-    const sessionCookie = await auth.createSessionCookie(idToken, {
+    const sessionCookie = await adminAuth.createSessionCookie(idToken, {
       expiresIn,
     });
 
