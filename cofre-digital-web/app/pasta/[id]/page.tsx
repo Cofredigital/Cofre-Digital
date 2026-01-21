@@ -54,6 +54,9 @@ export default function PastaPage() {
   const [itens, setItens] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // 🔍 Busca (dentro desta pasta/subpasta)
+  const [qBusca, setQBusca] = useState("");
+
   // ✅ Destaque do item (quando abre pela pesquisa)
   const [highlightId, setHighlightId] = useState<string>("");
 
@@ -162,14 +165,12 @@ export default function PastaPage() {
     if (loading) return;
     if (!itemFromUrl) return;
 
-    // espera um "tick" pro DOM renderizar os cards
     const t = setTimeout(() => {
       const el = document.getElementById(`item-${itemFromUrl}`);
       if (el) {
         el.scrollIntoView({ behavior: "smooth", block: "center" });
         setHighlightId(itemFromUrl);
 
-        // remove destaque depois de alguns segundos
         setTimeout(() => setHighlightId(""), 3500);
       }
     }, 250);
@@ -192,6 +193,19 @@ export default function PastaPage() {
     const sp = subpastas.find((x) => x.id === subpastaSelecionada);
     return sp ? `📂 ${sp.nome}` : "📂 Subpasta";
   }, [subpastaSelecionada, subpastas]);
+
+  // ✅ Filtra itens por busca (titulo/conteudo/tipo)
+  const itensFiltrados = useMemo(() => {
+    const term = qBusca.trim().toLowerCase();
+    if (!term) return itens;
+
+    return itens.filter((item) => {
+      const t = (item.titulo || "").toLowerCase();
+      const c = (item.conteudo || "").toLowerCase();
+      const tp = (item.tipo || "").toLowerCase();
+      return t.includes(term) || c.includes(term) || tp.includes(term);
+    });
+  }, [itens, qBusca]);
 
   async function criarItem() {
     if (!uid || !pastaId) return;
@@ -259,9 +273,7 @@ export default function PastaPage() {
           )
         );
       } else {
-        await deleteDoc(
-          doc(db, "users", uid, "pastas", pastaId, "itens", itemId)
-        );
+        await deleteDoc(doc(db, "users", uid, "pastas", pastaId, "itens", itemId));
       }
     } catch (err) {
       console.log("ERRO excluir:", err);
@@ -280,13 +292,10 @@ export default function PastaPage() {
 
     setCriandoSubpasta(true);
     try {
-      await addDoc(
-        collection(db, "users", uid, "pastas", pastaId, "subpastas"),
-        {
-          nome,
-          criadoEm: serverTimestamp(),
-        }
-      );
+      await addDoc(collection(db, "users", uid, "pastas", pastaId, "subpastas"), {
+        nome,
+        criadoEm: serverTimestamp(),
+      });
 
       setModalSubpastaOpen(false);
       resetModalSubpasta();
@@ -307,9 +316,7 @@ export default function PastaPage() {
     if (!ok) return;
 
     try {
-      await deleteDoc(
-        doc(db, "users", uid, "pastas", pastaId, "subpastas", subId)
-      );
+      await deleteDoc(doc(db, "users", uid, "pastas", pastaId, "subpastas", subId));
 
       if (subpastaSelecionada === subId) {
         setSubpastaSelecionada("");
@@ -356,7 +363,8 @@ export default function PastaPage() {
 
         {/* Dica */}
         <div className="mt-8 rounded-3xl bg-white/10 border border-white/15 p-5 text-sm text-white/80">
-          💡 Dica: você pode criar <b>subpastas</b> aqui (ex: Bancos → Nubank / Itaú / Caixa).
+          💡 Dica: você pode criar <b>subpastas</b> aqui (ex: Bancos → Nubank / Itaú /
+          Caixa).
         </div>
 
         {/* Subpastas */}
@@ -408,24 +416,77 @@ export default function PastaPage() {
           </div>
         </div>
 
+        {/* 🔍 Busca premium dentro desta pasta/subpasta */}
+        <div className="mt-8 rounded-3xl border border-yellow-400/20 bg-gradient-to-r from-blue-950/40 to-blue-900/30 p-4 shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="h-11 w-11 rounded-2xl bg-yellow-400/15 border border-yellow-400/25 flex items-center justify-center text-lg">
+              🔍
+            </div>
+
+            <div className="flex-1">
+              <div className="text-xs text-yellow-200/80 font-bold mb-1">
+                PESQUISAR ITENS AQUI
+              </div>
+
+              <input
+                value={qBusca}
+                onChange={(e) => setQBusca(e.target.value)}
+                placeholder="Digite: RG, senha, contrato, link, nubank..."
+                className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder:text-white/40 outline-none focus:border-yellow-400/35 focus:ring-2 focus:ring-yellow-400/15"
+              />
+            </div>
+
+            {qBusca.trim() && (
+              <button
+                onClick={() => setQBusca("")}
+                className="rounded-2xl px-4 py-3 font-extrabold text-sm border border-white/10 bg-white/5 text-white/80 hover:bg-white/10 transition"
+              >
+                Limpar
+              </button>
+            )}
+          </div>
+
+          <div className="mt-3 text-xs text-white/60">
+            {qBusca.trim() ? (
+              <>
+                Encontrados{" "}
+                <b className="text-yellow-200">{itensFiltrados.length}</b> itens para:{" "}
+                <b className="text-white">{qBusca}</b>
+              </>
+            ) : (
+              <>
+                Dica: pesquise por título, conteúdo ou tipo (ex: “senha”, “rg”, “link”).
+              </>
+            )}
+          </div>
+        </div>
+
         {/* Conteúdo */}
         <div className="mt-10">
           {loading ? (
             <div className="rounded-3xl bg-white/10 border border-white/15 p-6">
               <p className="text-white/80 text-sm">Carregando itens...</p>
             </div>
-          ) : itens.length === 0 ? (
+          ) : itensFiltrados.length === 0 ? (
             <div className="rounded-3xl bg-white/10 border border-white/15 p-6">
               <p className="text-white/80 text-sm">
-                Ainda não existe nenhum item aqui. Clique em <b>“Novo item”</b>.
+                {qBusca.trim() ? (
+                  <>
+                    Nenhum item encontrado para <b>{qBusca}</b>.
+                  </>
+                ) : (
+                  <>
+                    Ainda não existe nenhum item aqui. Clique em <b>“Novo item”</b>.
+                  </>
+                )}
               </p>
             </div>
           ) : (
             <div className="grid gap-5 md:grid-cols-2">
-              {itens.map((item) => (
+              {itensFiltrados.map((item) => (
                 <div
                   key={item.id}
-                  id={`item-${item.id}`} // ✅ importante pro scroll
+                  id={`item-${item.id}`}
                   className={`rounded-3xl bg-white/10 border p-6 shadow-lg transition ${
                     highlightId === item.id
                       ? "border-yellow-300/80 bg-yellow-300/15 ring-2 ring-yellow-200/60"
