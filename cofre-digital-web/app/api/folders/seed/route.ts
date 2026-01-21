@@ -24,42 +24,26 @@ const DEFAULT_FOLDERS: DefaultFolder[] = [
   { name: "Impostos", icon: "tax", color: "blue" },
 ];
 
+function normalizeName(name: string) {
+  return name.trim().toLowerCase();
+}
+
 async function getUidFromSessionCookie() {
   const cookieStore = await cookies();
   const sessionCookie = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+
   if (!sessionCookie) return null;
 
   const decoded = await adminAuth.verifySessionCookie(sessionCookie, true);
   return decoded.uid;
 }
 
-// ✅ GET: só para testar no browser
+// ✅ GET (só pra testar no navegador)
 export async function GET() {
-  try {
-    const uid = await getUidFromSessionCookie();
-    if (!uid) {
-      return NextResponse.json(
-        { ok: false, error: "not-authenticated" },
-        { status: 401 }
-      );
-    }
-
-    return NextResponse.json({
-      ok: true,
-      message: "Seed endpoint OK. Use POST to seed default folders.",
-      uid,
-      path: `users/${uid}/folders`,
-      cookieName: SESSION_COOKIE_NAME,
-    });
-  } catch (err: any) {
-    return NextResponse.json(
-      { ok: false, error: err?.message ?? "seed-get-error" },
-      { status: 500 }
-    );
-  }
+  return POST();
 }
 
-// ✅ POST: cria as pastas padrão
+// ✅ POST (cria somente pastas que faltam)
 export async function POST() {
   try {
     const uid = await getUidFromSessionCookie();
@@ -71,32 +55,58 @@ export async function POST() {
       );
     }
 
-    const foldersCol = adminDb.collection("users").doc(uid).collection("folders");
+    const foldersCol = adminDb
+      .collection("users")
+      .doc(uid)
+      .collection("folders");
 
-    // se já tem pasta, não recria
-    const existing = await foldersCol.limit(1).get();
-    if (!existing.empty) {
+    // 1) buscar pastas existentes
+    const snap = await foldersCol.get();
+
+    const existingNames = new Set<string>();
+    snap.docs.forEach((doc) => {
+      const data = doc.data();
+      if (typeof data?.name === "string") {
+        existingNames.add(normalizeName(data.name));
+      }
+    });
+
+    // 2) filtrar somente as que faltam
+    const missing = DEFAULT_FOLDERS.filter(
+      (f) => !existingNames.has(normalizeName(f.name))
+    );
+
+    if (missing.length === 0) {
       return NextResponse.json({
         ok: true,
-        uid,
-        path: `users/${uid}/folders`,
         seeded: false,
-        reason: "already-has-folders",
-        cookieName: SESSION_COOKIE_NAME,
+        created: 0,
+        reason: "nothing-to-create",
+        uid,
       });
     }
 
+    // 3) criar somente as faltantes
     const now = Date.now();
     const batch = adminDb.batch();
 
-    DEFAULT_FOLDERS.forEach((f, index) => {
+    // pega maior order atual (pra não bagunçar)
+    const existingOrders = snap.docs
+      .map((d) => d.data()?.order)
+      .filter((o) => typeof o === "number") as number[];
+
+    let startOrder =
+      existingOrders.length > 0 ? Math.max(...existingOrders) + 1 : 0;
+
+    missing.forEach((f, index) => {
       const ref = foldersCol.doc();
+
       batch.set(ref, {
         name: f.name,
         icon: f.icon,
         color: f.color,
         createdAt: now,
-        order: index,
+        order: startOrder + index,
         isDefault: true,
       });
     });
@@ -105,11 +115,10 @@ export async function POST() {
 
     return NextResponse.json({
       ok: true,
-      uid,
-      path: `users/${uid}/folders`,
       seeded: true,
-      count: DEFAULT_FOLDERS.length,
-      cookieName: SESSION_COOKIE_NAME,
+      uid,
+      created: missing.length,
+      createdNames: missing.map((m) => m.name),
     });
   } catch (err: any) {
     console.error("Seed folders error:", err);
