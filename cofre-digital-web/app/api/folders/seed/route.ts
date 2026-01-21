@@ -27,14 +27,13 @@ const DEFAULT_FOLDERS: DefaultFolder[] = [
 async function getUidFromSessionCookie() {
   const cookieStore = await cookies();
   const sessionCookie = cookieStore.get(SESSION_COOKIE_NAME)?.value;
-
   if (!sessionCookie) return null;
 
   const decoded = await adminAuth.verifySessionCookie(sessionCookie, true);
   return decoded.uid;
 }
 
-// ✅ GET (para testar no browser)
+// ✅ GET: só para testar no browser
 export async function GET() {
   try {
     const uid = await getUidFromSessionCookie();
@@ -49,6 +48,8 @@ export async function GET() {
       ok: true,
       message: "Seed endpoint OK. Use POST to seed default folders.",
       uid,
+      path: `users/${uid}/folders`,
+      cookieName: SESSION_COOKIE_NAME,
     });
   } catch (err: any) {
     return NextResponse.json(
@@ -58,7 +59,7 @@ export async function GET() {
   }
 }
 
-// ✅ POST (cria as pastas padrão)
+// ✅ POST: cria as pastas padrão
 export async function POST() {
   try {
     const uid = await getUidFromSessionCookie();
@@ -70,18 +71,18 @@ export async function POST() {
       );
     }
 
-    const foldersCol = adminDb
-      .collection("users")
-      .doc(uid)
-      .collection("folders");
+    const foldersCol = adminDb.collection("users").doc(uid).collection("folders");
 
     // se já tem pasta, não recria
     const existing = await foldersCol.limit(1).get();
     if (!existing.empty) {
       return NextResponse.json({
         ok: true,
+        uid,
+        path: `users/${uid}/folders`,
         seeded: false,
         reason: "already-has-folders",
+        cookieName: SESSION_COOKIE_NAME,
       });
     }
 
@@ -90,7 +91,6 @@ export async function POST() {
 
     DEFAULT_FOLDERS.forEach((f, index) => {
       const ref = foldersCol.doc();
-
       batch.set(ref, {
         name: f.name,
         icon: f.icon,
@@ -105,8 +105,11 @@ export async function POST() {
 
     return NextResponse.json({
       ok: true,
+      uid,
+      path: `users/${uid}/folders`,
       seeded: true,
       count: DEFAULT_FOLDERS.length,
+      cookieName: SESSION_COOKIE_NAME,
     });
   } catch (err: any) {
     console.error("Seed folders error:", err);

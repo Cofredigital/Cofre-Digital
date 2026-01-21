@@ -2,8 +2,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { adminAuth, adminDb } from "@/lib/firebaseAdmin";
-
-const SESSION_COOKIE_NAME = "session";
+import { SESSION_COOKIE_NAME } from "@/lib/session";
 
 export async function GET() {
   try {
@@ -22,7 +21,7 @@ export async function GET() {
 
     const foldersCol = adminDb.collection("users").doc(uid).collection("folders");
 
-    // ✅ pega TUDO sem orderBy (evita query falhar/excluir docs)
+    // ✅ pega tudo SEM orderBy
     const snap = await foldersCol.get();
 
     const folders = snap.docs
@@ -36,6 +35,8 @@ export async function GET() {
     return NextResponse.json({
       ok: true,
       uid,
+      path: `users/${uid}/folders`,
+      cookieName: SESSION_COOKIE_NAME,
       count: folders.length,
       folders,
     });
