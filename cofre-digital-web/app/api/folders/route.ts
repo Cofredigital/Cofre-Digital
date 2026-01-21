@@ -22,15 +22,21 @@ export async function GET() {
 
     const foldersCol = adminDb.collection("users").doc(uid).collection("folders");
 
-    const snap = await foldersCol.orderBy("order", "asc").get();
+    // ✅ pega TUDO sem orderBy (evita query falhar/excluir docs)
+    const snap = await foldersCol.get();
 
-    const folders = snap.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
+    const folders = snap.docs
+      .map((doc) => ({ id: doc.id, ...doc.data() }))
+      .sort((a: any, b: any) => {
+        const ao = typeof a.order === "number" ? a.order : 999999;
+        const bo = typeof b.order === "number" ? b.order : 999999;
+        return ao - bo;
+      });
 
     return NextResponse.json({
       ok: true,
+      uid,
+      count: folders.length,
       folders,
     });
   } catch (err: any) {
