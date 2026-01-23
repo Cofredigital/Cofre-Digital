@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { useState } from "react";
 import { createUserWithEmailAndPassword } from "firebase/auth";
-import { auth } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
+import { doc, serverTimestamp, setDoc } from "firebase/firestore";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -20,12 +21,37 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      await createUserWithEmailAndPassword(auth, email, senha);
-      router.push("/dashboard"); // ✅ após criar conta vai pro cofre
+      // 1) cria usuário no Firebase Auth
+      const cred = await createUserWithEmailAndPassword(auth, email, senha);
+
+      const user = cred.user;
+      if (!user) throw new Error("Falha ao criar usuário.");
+
+      // 2) cria dados do plano: 5 dias grátis
+      const now = Date.now();
+      const FIVE_DAYS_MS = 5 * 24 * 60 * 60 * 1000;
+      const trialEndsAtMs = now + FIVE_DAYS_MS;
+
+      // 3) cria doc do usuário no Firestore
+      await setDoc(
+        doc(db, "users", user.uid),
+        {
+          uid: user.uid,
+          email: user.email || email,
+          planStatus: "trial", // trial | active | expired
+          trialStartedAtMs: now,
+          trialEndsAtMs: trialEndsAtMs,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      // 4) vai pro painel
+      router.push("/dashboard");
     } catch (err: any) {
       console.log("ERRO FIREBASE:", err);
 
-      // mostra o código do erro no console e uma msg amigável na tela
       const codigo = err?.code || "";
       if (codigo === "auth/email-already-in-use") {
         setErro("Esse e-mail já está em uso. Tente entrar.");
@@ -46,7 +72,7 @@ export default function RegisterPage() {
       <div className="w-full max-w-md bg-white rounded-2xl shadow p-6 border border-zinc-200">
         <h1 className="text-2xl font-bold text-zinc-900">Criar conta</h1>
         <p className="text-sm text-zinc-600 mt-1">
-          Crie sua conta para guardar seus dados com segurança.
+          Crie sua conta e ganhe <b>5 dias grátis</b> para testar o Cofre Digital.
         </p>
 
         <form onSubmit={handleRegister} className="mt-6 space-y-4">
@@ -86,7 +112,7 @@ export default function RegisterPage() {
             disabled={loading}
             className="w-full rounded-xl bg-zinc-900 text-white py-3 font-semibold hover:bg-zinc-800 disabled:opacity-60"
           >
-            {loading ? "Criando..." : "Criar conta"}
+            {loading ? "Criando..." : "Criar conta (5 dias grátis)"}
           </button>
         </form>
 
