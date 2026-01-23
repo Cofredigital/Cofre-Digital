@@ -19,6 +19,10 @@ type SearchResult = {
   snippet: string;
 };
 
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export default function DashboardPage() {
   const [folders, setFolders] = useState<Folder[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,10 +42,8 @@ export default function DashboardPage() {
 
   const canSearch = useMemo(() => q.trim().length >= 2, [q]);
 
-  async function loadFolders() {
+  async function loadFolders(): Promise<Folder[]> {
     try {
-      setLoading(true);
-
       const resp = await fetch("/api/folders", {
         method: "GET",
         headers: { "Content-Type": "application/json" },
@@ -63,12 +65,10 @@ export default function DashboardPage() {
       console.error("Erro carregando pastas:", err);
       setFolders([]);
       return [];
-    } finally {
-      setLoading(false);
     }
   }
 
-  async function seedDefaultFolders() {
+  async function seedDefaultFolders(): Promise<boolean> {
     try {
       setSeeding(true);
 
@@ -94,20 +94,52 @@ export default function DashboardPage() {
     }
   }
 
-  // ✅ Carrega e faz SEED automático quando conta for nova
+  // ✅ Boot: carrega pastas + seed automático com retry (corrige "Nenhuma pasta encontrada")
   useEffect(() => {
-    (async () => {
-      const list = await loadFolders();
+    let cancelled = false;
 
-      // ✅ Se for conta nova: cria automaticamente as pastas padrão
-      if (!seededOnce && list.length === 0) {
-        setSeededOnce(true);
-        const ok = await seedDefaultFolders();
-        if (ok) {
-          await loadFolders();
+    (async () => {
+      try {
+        setLoading(true);
+
+        // 1) primeira tentativa carregar pastas
+        let list = await loadFolders();
+        if (cancelled) return;
+
+        // 2) se conta nova e veio vazio, roda seed uma vez
+        if (!seededOnce && list.length === 0) {
+          setSeededOnce(true);
+
+          const ok = await seedDefaultFolders();
+          if (cancelled) return;
+
+          // se seed falhar, para por aqui (vai cair no estado "Nenhuma pasta")
+          if (!ok) {
+            list = [];
+          } else {
+            // 3) aguarda um pouco e tenta recarregar algumas vezes
+            // (Firestore pode levar um tempinho para refletir)
+            const retries = [250, 600, 1200];
+
+            for (const wait of retries) {
+              await sleep(wait);
+              if (cancelled) return;
+
+              list = await loadFolders();
+              if (cancelled) return;
+
+              if (list.length > 0) break;
+            }
+          }
         }
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     })();
+
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -133,11 +165,13 @@ export default function DashboardPage() {
         return;
       }
 
+      setLoading(true);
       await loadFolders();
     } catch (err) {
       console.error(err);
       alert("Erro ao criar pasta.");
     } finally {
+      setLoading(false);
       setCreating(false);
     }
   }
