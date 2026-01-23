@@ -4,12 +4,9 @@ import Link from "next/link";
 import { useState } from "react";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
-import { useRouter } from "next/navigation";
 import { doc, serverTimestamp, setDoc } from "firebase/firestore";
 
 export default function RegisterPage() {
-  const router = useRouter();
-
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [erro, setErro] = useState("");
@@ -40,15 +37,34 @@ export default function RegisterPage() {
           email: user.email || email,
           planStatus: "trial", // trial | active | expired
           trialStartedAtMs: now,
-          trialEndsAtMs: trialEndsAtMs,
+          trialEndsAtMs,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         },
         { merge: true }
       );
 
-      // 4) vai pro painel
-      router.push("/dashboard");
+      // ✅ 4) cria cookie de sessão (igual o login)
+      const idToken = await user.getIdToken();
+
+      const resp = await fetch("/api/session", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({ idToken }),
+      });
+
+      const data = await resp.json();
+
+      if (!resp.ok) {
+        console.error("Erro /api/session:", data);
+        throw new Error(data?.error || "Erro ao criar sessão.");
+      }
+
+      // ✅ 5) Redireciona do jeito mais confiável
+      window.location.href = "/dashboard";
     } catch (err: any) {
       console.log("ERRO FIREBASE:", err);
 
