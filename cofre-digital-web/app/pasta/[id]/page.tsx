@@ -32,6 +32,20 @@ type Subpasta = {
   criadoEm?: any;
 };
 
+// ✅ util: timeout pra promessas (impede travar infinito)
+function promiseWithTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  timeoutMsg: string
+): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(timeoutMsg)), timeoutMs)
+    ),
+  ]);
+}
+
 export default function PastaPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
@@ -234,18 +248,25 @@ export default function PastaPage() {
             )
           : collection(db, "users", uid, "pastas", pastaId, "itens");
 
-      await addDoc(col, {
-        titulo: t,
-        tipo,
-        conteudo: c,
-        criadoEm: serverTimestamp(),
-      });
+      // ✅ IMPORTANTE: timeout para não travar infinito no Firestore
+      await promiseWithTimeout(
+        addDoc(col, {
+          titulo: t,
+          tipo,
+          conteudo: c,
+          criadoEm: serverTimestamp(),
+        }),
+        12000,
+        "Demorou demais para salvar. Verifique sua internet e tente novamente."
+      );
 
       setModalOpen(false);
       resetModalItem();
-    } catch (err) {
+    } catch (err: any) {
       console.log("ERRO criar item:", err);
-      alert("Erro ao criar item.");
+
+      // ✅ mensagem melhor para o usuário
+      alert(err?.message || "Erro ao criar item.");
     } finally {
       setCriando(false);
     }
