@@ -15,13 +15,19 @@ function fetchWithTimeout(url: string, options: RequestInit, timeoutMs: number) 
   ]);
 }
 
+function promiseWithTimeout<T>(promise: Promise<T>, timeoutMs: number, timeoutMsg: string) {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error(timeoutMsg)), timeoutMs)),
+  ]);
+}
+
 export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [erro, setErro] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // ✅ Mostra em qual etapa travou
   const [step, setStep] = useState<string>("");
 
   async function handleRegister(e: React.FormEvent) {
@@ -33,37 +39,14 @@ export default function RegisterPage() {
     try {
       setStep("1/4 Criando usuário...");
 
-      // 1) cria usuário no Firebase Auth
+      // 1) cria usuário
       const cred = await createUserWithEmailAndPassword(auth, email, senha);
-
       const user = cred.user;
       if (!user) throw new Error("Falha ao criar usuário.");
 
-      setStep("2/4 Salvando plano trial (5 dias) ...");
+      // ✅ 2) cria sessão primeiro (pra não travar usuário)
+      setStep("2/4 Criando sessão...");
 
-      // 2) cria dados do plano: 5 dias grátis
-      const now = Date.now();
-      const FIVE_DAYS_MS = 5 * 24 * 60 * 60 * 1000;
-      const trialEndsAtMs = now + FIVE_DAYS_MS;
-
-      // 3) cria doc do usuário no Firestore
-      await setDoc(
-        doc(db, "users", user.uid),
-        {
-          uid: user.uid,
-          email: user.email || email,
-          planStatus: "trial", // trial | active | expired
-          trialStartedAtMs: now,
-          trialEndsAtMs,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        },
-        { merge: true }
-      );
-
-      setStep("3/4 Criando sessão...");
-
-      // ✅ 4) cria cookie de sessão (igual o login)
       const idToken = await user.getIdToken(true);
 
       const resp = await fetchWithTimeout(
@@ -74,7 +57,7 @@ export default function RegisterPage() {
           credentials: "include",
           body: JSON.stringify({ idToken }),
         },
-        12000 // 12 segundos timeout
+        12000
       );
 
       const data = await resp.json();
@@ -84,9 +67,40 @@ export default function RegisterPage() {
         throw new Error(data?.error || "Erro ao criar sessão.");
       }
 
+      // ✅ 3) agora tenta salvar plano trial (mas sem travar a pessoa)
+      setStep("3/4 Salvando plano trial (5 dias)...");
+
+      const now = Date.now();
+      const FIVE_DAYS_MS = 5 * 24 * 60 * 60 * 1000;
+      const trialEndsAtMs = now + FIVE_DAYS_MS;
+
+      try {
+        // se o Firestore travar/bloquear, não vamos prender o usuário aqui
+        await promiseWithTimeout(
+          setDoc(
+            doc(db, "users", user.uid),
+            {
+              uid: user.uid,
+              email: user.email || email,
+              planStatus: "trial",
+              trialStartedAtMs: now,
+              trialEndsAtMs,
+              createdAt: serverTimestamp(),
+              updatedAt: serverTimestamp(),
+            },
+            { merge: true }
+          ),
+          6000,
+          "Timeout salvando plano no Firestore."
+        );
+      } catch (err) {
+        // ⚠️ não trava o usuário — só registra no console
+        console.warn("Aviso: falha ao salvar trial no Firestore:", err);
+      }
+
       setStep("4/4 Entrando no painel...");
 
-      // ✅ Redireciona do jeito mais confiável
+      // ✅ 4) entra
       window.location.href = "/dashboard";
     } catch (err: any) {
       console.log("ERRO REGISTER:", err);
@@ -102,7 +116,6 @@ export default function RegisterPage() {
         setErro(err?.message || "Não foi possível criar sua conta.");
       }
 
-      // ✅ Se travar, ao menos liberar o botão
       setStep("");
     } finally {
       setLoading(false);
@@ -143,7 +156,6 @@ export default function RegisterPage() {
             />
           </div>
 
-          {/* ✅ mostra etapa atual */}
           {loading && step && (
             <div className="text-sm text-blue-800 bg-blue-50 border border-blue-200 px-3 py-2 rounded-xl">
               {step}
