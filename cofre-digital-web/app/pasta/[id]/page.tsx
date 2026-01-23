@@ -18,12 +18,20 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 
+type ItemType = "nota" | "senha" | "link" | "arquivo";
+
 type Item = {
   id: string;
   titulo: string;
-  tipo: "nota" | "senha" | "link";
+  tipo: ItemType;
   conteudo: string;
   criadoEm?: any;
+
+  // ✅ para arquivo (novo)
+  fileUrl?: string;
+  fileName?: string;
+  fileMime?: string;
+  fileSize?: number;
 };
 
 type Subpasta = {
@@ -32,18 +40,19 @@ type Subpasta = {
   criadoEm?: any;
 };
 
-// ✅ util: timeout pra promessas (impede travar infinito no salvamento)
-function promiseWithTimeout<T>(
-  promise: Promise<T>,
-  timeoutMs: number,
-  timeoutMsg: string
-): Promise<T> {
-  return Promise.race([
-    promise,
-    new Promise<T>((_, reject) =>
-      setTimeout(() => reject(new Error(timeoutMsg)), timeoutMs)
-    ),
-  ]);
+function formatBytes(bytes?: number) {
+  if (!bytes || bytes <= 0) return "";
+  const sizes = ["B", "KB", "MB", "GB"];
+  const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), sizes.length - 1);
+  const value = bytes / Math.pow(1024, i);
+  return `${value.toFixed(value >= 10 || i === 0 ? 0 : 1)} ${sizes[i]}`;
+}
+
+function isImageMime(mime?: string) {
+  return !!mime && mime.startsWith("image/");
+}
+function isPdfMime(mime?: string) {
+  return mime === "application/pdf";
 }
 
 export default function PastaPage() {
@@ -77,9 +86,14 @@ export default function PastaPage() {
   // modal item
   const [modalOpen, setModalOpen] = useState(false);
   const [titulo, setTitulo] = useState("");
-  const [tipo, setTipo] = useState<Item["tipo"]>("nota");
+  const [tipo, setTipo] = useState<ItemType>("nota");
   const [conteudo, setConteudo] = useState("");
   const [criando, setCriando] = useState(false);
+
+  // ✅ arquivo upload (novo)
+  const [file, setFile] = useState<File | null>(null);
+  const [fileUploading, setFileUploading] = useState(false);
+  const [fileProgressMsg, setFileProgressMsg] = useState<string>("");
 
   // modal subpasta
   const [modalSubpastaOpen, setModalSubpastaOpen] = useState(false);
@@ -196,6 +210,9 @@ export default function PastaPage() {
     setTitulo("");
     setTipo("nota");
     setConteudo("");
+    setFile(null);
+    setFileUploading(false);
+    setFileProgressMsg("");
   }
 
   function resetModalSubpasta() {
@@ -217,19 +234,66 @@ export default function PastaPage() {
       const t = (item.titulo || "").toLowerCase();
       const c = (item.conteudo || "").toLowerCase();
       const tp = (item.tipo || "").toLowerCase();
-      return t.includes(term) || c.includes(term) || tp.includes(term);
+      const fn = (item.fileName || "").toLowerCase();
+      return t.includes(term) || c.includes(term) || tp.includes(term) || fn.includes(term);
     });
   }, [itens, qBusca]);
+
+  async function uploadFileToCloudinary(selected: File) {
+    try {
+      setFileUploading(true);
+      setFileProgressMsg("Enviando arquivo...");
+
+      const form = new FormData();
+      form.append("file", selected);
+
+      const resp = await fetch("/api/upload", {
+        method: "POST",
+        body: form,
+        credentials: "include",
+      });
+
+      const data = await resp.json();
+
+      if (!resp.ok) {
+        console.error("Erro /api/upload:", data);
+        throw new Error(data?.error || "Erro ao enviar arquivo.");
+      }
+
+      return data as {
+        url: string;
+        originalFilename: string;
+        bytes: number;
+        mimeType: string;
+      };
+    } finally {
+      setFileUploading(false);
+      setFileProgressMsg("");
+    }
+  }
 
   async function criarItem() {
     if (!uid || !pastaId) return;
 
     const t = titulo.trim();
-    const c = conteudo.trim();
 
-    if (!t || !c) {
-      alert("Preencha o título e o conteúdo.");
+    // ✅ validações por tipo
+    if (!t) {
+      alert("Preencha o título.");
       return;
+    }
+
+    if (tipo !== "arquivo") {
+      const c = conteudo.trim();
+      if (!c) {
+        alert("Preencha o conteúdo.");
+        return;
+      }
+    } else {
+      if (!file) {
+        alert("Selecione um arquivo.");
+        return;
+      }
     }
 
     setCriando(true);
@@ -248,17 +312,31 @@ export default function PastaPage() {
             )
           : collection(db, "users", uid, "pastas", pastaId, "itens");
 
-      // ✅ Timeout maior (40s) para evitar falsos alertas
-      await promiseWithTimeout(
-        addDoc(col, {
+      // ✅ Se for arquivo: primeiro faz upload e só depois salva no Firestore
+      if (tipo === "arquivo") {
+        const uploaded = await uploadFileToCloudinary(file!);
+
+        await addDoc(col, {
+          titulo: t,
+          tipo,
+          conteudo: "",
+
+          fileUrl: uploaded.url,
+          fileName: uploaded.originalFilename || file!.name,
+          fileMime: uploaded.mimeType || file!.type,
+          fileSize: uploaded.bytes || file!.size,
+
+          criadoEm: serverTimestamp(),
+        });
+      } else {
+        const c = conteudo.trim();
+        await addDoc(col, {
           titulo: t,
           tipo,
           conteudo: c,
           criadoEm: serverTimestamp(),
-        }),
-        40000,
-        "Está demorando para confirmar. Pode ter salvado. Feche e confira na lista."
-      );
+        });
+      }
 
       setModalOpen(false);
       resetModalItem();
@@ -518,11 +596,19 @@ export default function PastaPage() {
                         {item.tipo === "nota" && "📝 "}
                         {item.tipo === "senha" && "🔑 "}
                         {item.tipo === "link" && "🔗 "}
+                        {item.tipo === "arquivo" && "📎 "}
                         {item.titulo}
                       </div>
 
                       <div className="mt-1 text-xs text-white/70">
                         Tipo: <b>{item.tipo}</b>
+                        {item.tipo === "arquivo" && (
+                          <>
+                            {" "}
+                            • <b>{item.fileName || "arquivo"}</b>
+                            {item.fileSize ? ` • ${formatBytes(item.fileSize)}` : ""}
+                          </>
+                        )}
                       </div>
                     </div>
 
@@ -534,19 +620,65 @@ export default function PastaPage() {
                     </button>
                   </div>
 
-                  <div className="mt-4 rounded-2xl bg-black/20 border border-white/10 p-4 text-sm text-white/90 whitespace-pre-wrap break-words">
-                    {item.conteudo}
-                  </div>
+                  {/* Render */}
+                  {item.tipo !== "arquivo" && (
+                    <>
+                      <div className="mt-4 rounded-2xl bg-black/20 border border-white/10 p-4 text-sm text-white/90 whitespace-pre-wrap break-words">
+                        {item.conteudo}
+                      </div>
 
-                  {item.tipo === "link" && (
-                    <a
-                      href={item.conteudo}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="mt-4 inline-block text-sm font-bold underline underline-offset-4"
-                    >
-                      Abrir link
-                    </a>
+                      {item.tipo === "link" && (
+                        <a
+                          href={item.conteudo}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mt-4 inline-block text-sm font-bold underline underline-offset-4"
+                        >
+                          Abrir link
+                        </a>
+                      )}
+                    </>
+                  )}
+
+                  {item.tipo === "arquivo" && (
+                    <div className="mt-4 rounded-2xl bg-black/20 border border-white/10 p-4">
+                      {item.fileUrl ? (
+                        <>
+                          {isImageMime(item.fileMime) && (
+                            <img
+                              src={item.fileUrl}
+                              alt={item.fileName || "imagem"}
+                              className="w-full max-h-[360px] object-contain rounded-xl border border-white/10"
+                            />
+                          )}
+
+                          {isPdfMime(item.fileMime) && (
+                            <div className="text-sm text-white/80">
+                              📄 PDF anexado.
+                            </div>
+                          )}
+
+                          {!isImageMime(item.fileMime) && !isPdfMime(item.fileMime) && (
+                            <div className="text-sm text-white/80">
+                              📎 Arquivo anexado.
+                            </div>
+                          )}
+
+                          <a
+                            href={item.fileUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="mt-3 inline-flex items-center justify-center rounded-xl bg-white text-blue-900 px-4 py-2 text-sm font-extrabold hover:bg-blue-50"
+                          >
+                            Abrir / Baixar arquivo
+                          </a>
+                        </>
+                      ) : (
+                        <div className="text-sm text-white/70">
+                          Arquivo não encontrado.
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
               ))}
@@ -583,30 +715,72 @@ export default function PastaPage() {
                 <label className="text-sm font-bold text-zinc-700">Tipo</label>
                 <select
                   value={tipo}
-                  onChange={(e) => setTipo(e.target.value as any)}
+                  onChange={(e) => {
+                    const newType = e.target.value as ItemType;
+                    setTipo(newType);
+
+                    // reset campos
+                    setConteudo("");
+                    setFile(null);
+                  }}
                   className="mt-1 w-full rounded-2xl border border-zinc-300 px-4 py-3 outline-none focus:ring-2 focus:ring-blue-700"
                 >
                   <option value="nota">📝 Nota</option>
                   <option value="senha">🔑 Senha</option>
                   <option value="link">🔗 Link</option>
+                  <option value="arquivo">📎 Arquivo (imagem/PDF/doc)</option>
                 </select>
               </div>
 
-              <div>
-                <label className="text-sm font-bold text-zinc-700">Conteúdo</label>
-                <textarea
-                  value={conteudo}
-                  onChange={(e) => setConteudo(e.target.value)}
-                  placeholder={
-                    tipo === "senha"
-                      ? "Ex.: Login: xxx | Senha: yyy"
-                      : tipo === "link"
-                      ? "Cole o link aqui"
-                      : "Escreva sua nota..."
-                  }
-                  className="mt-1 w-full min-h-[140px] rounded-2xl border border-zinc-300 px-4 py-3 outline-none focus:ring-2 focus:ring-blue-700"
-                />
-              </div>
+              {/* Conteúdo ou Upload */}
+              {tipo !== "arquivo" ? (
+                <div>
+                  <label className="text-sm font-bold text-zinc-700">Conteúdo</label>
+                  <textarea
+                    value={conteudo}
+                    onChange={(e) => setConteudo(e.target.value)}
+                    placeholder={
+                      tipo === "senha"
+                        ? "Ex.: Login: xxx | Senha: yyy"
+                        : tipo === "link"
+                        ? "Cole o link aqui"
+                        : "Escreva sua nota..."
+                    }
+                    className="mt-1 w-full min-h-[140px] rounded-2xl border border-zinc-300 px-4 py-3 outline-none focus:ring-2 focus:ring-blue-700"
+                  />
+                </div>
+              ) : (
+                <div>
+                  <label className="text-sm font-bold text-zinc-700">Arquivo</label>
+
+                  <input
+                    type="file"
+                    className="mt-1 w-full rounded-2xl border border-zinc-300 px-4 py-3 bg-white"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0] || null;
+                      setFile(f);
+                    }}
+                    accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt"
+                  />
+
+                  <div className="text-xs text-zinc-600 mt-2">
+                    Pode enviar imagem, PDF ou documento. Máx: 15MB.
+                  </div>
+
+                  {file && (
+                    <div className="mt-3 rounded-2xl bg-zinc-50 border border-zinc-200 p-3 text-sm">
+                      <b>Selecionado:</b> {file.name} • {formatBytes(file.size)} •{" "}
+                      {file.type || "arquivo"}
+                    </div>
+                  )}
+
+                  {fileUploading && (
+                    <div className="mt-3 rounded-2xl border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
+                      {fileProgressMsg || "Enviando..."}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="mt-6 flex gap-2">
@@ -616,16 +790,17 @@ export default function PastaPage() {
                   resetModalItem();
                 }}
                 className="w-full rounded-2xl border border-zinc-300 py-3 font-bold hover:bg-zinc-50"
+                disabled={criando || fileUploading}
               >
                 Cancelar
               </button>
 
               <button
                 onClick={criarItem}
-                disabled={criando}
+                disabled={criando || fileUploading}
                 className="w-full rounded-2xl bg-blue-700 text-white py-3 font-extrabold hover:bg-blue-800 disabled:opacity-60"
               >
-                {criando ? "Salvando..." : "Salvar item"}
+                {criando || fileUploading ? "Salvando..." : "Salvar item"}
               </button>
             </div>
           </div>
