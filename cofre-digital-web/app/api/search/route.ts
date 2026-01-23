@@ -27,11 +27,11 @@ export async function GET(req: Request) {
     const decoded = await adminAuth.verifySessionCookie(sessionCookie, true);
     const uid = decoded.uid;
 
-    // ✅ 1) Buscar pastas
+    // ✅ 1) Buscar pastas (CORRETO: collection "pastas")
     const foldersSnap = await adminDb
       .collection("users")
       .doc(uid)
-      .collection("folders")
+      .collection("pastas")
       .get();
 
     const folderDocs = foldersSnap.docs.map((d) => ({
@@ -44,7 +44,10 @@ export async function GET(req: Request) {
 
     for (const folder of folderDocs) {
       const folderId = folder.id;
-      const folderName = folder.name || "Pasta sem nome";
+
+      // nome pode ser "name" ou "nome", vamos aceitar ambos
+      const folderName =
+        folder.name || folder.nome || folder.title || "Pasta sem nome";
 
       // ✅ itens da pasta
       const itemsSnap = await adminDb
@@ -57,8 +60,9 @@ export async function GET(req: Request) {
 
       for (const it of itemsSnap.docs) {
         const data = it.data() as any;
-        const titulo = (data?.titulo || "").toLowerCase();
-        const conteudo = (data?.conteudo || "").toLowerCase();
+
+        const titulo = String(data?.titulo || "").toLowerCase();
+        const conteudo = String(data?.conteudo || "").toLowerCase();
 
         if (titulo.includes(q) || conteudo.includes(q)) {
           results.push({
@@ -70,7 +74,7 @@ export async function GET(req: Request) {
             itemId: it.id,
             titulo: data?.titulo || "",
             tipo: data?.tipo || "nota",
-            snippet: (data?.conteudo || "").slice(0, 120),
+            snippet: String(data?.conteudo || "").slice(0, 120),
           });
         }
       }
@@ -87,7 +91,10 @@ export async function GET(req: Request) {
       for (const sub of subSnap.docs) {
         const subData = sub.data() as any;
         const subId = sub.id;
-        const subNome = subData?.nome || "Subpasta";
+
+        // subpasta pode ser "nome" ou "name"
+        const subNome =
+          subData?.nome || subData?.name || subData?.title || "Subpasta";
 
         const subItemsSnap = await adminDb
           .collection("users")
@@ -101,8 +108,9 @@ export async function GET(req: Request) {
 
         for (const it of subItemsSnap.docs) {
           const data = it.data() as any;
-          const titulo = (data?.titulo || "").toLowerCase();
-          const conteudo = (data?.conteudo || "").toLowerCase();
+
+          const titulo = String(data?.titulo || "").toLowerCase();
+          const conteudo = String(data?.conteudo || "").toLowerCase();
 
           if (titulo.includes(q) || conteudo.includes(q)) {
             results.push({
@@ -114,7 +122,7 @@ export async function GET(req: Request) {
               itemId: it.id,
               titulo: data?.titulo || "",
               tipo: data?.tipo || "nota",
-              snippet: (data?.conteudo || "").slice(0, 120),
+              snippet: String(data?.conteudo || "").slice(0, 120),
             });
           }
         }
