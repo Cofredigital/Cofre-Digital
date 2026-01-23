@@ -6,23 +6,40 @@ import { createUserWithEmailAndPassword } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
 import { doc, serverTimestamp, setDoc } from "firebase/firestore";
 
+function fetchWithTimeout(url: string, options: RequestInit, timeoutMs: number) {
+  return Promise.race([
+    fetch(url, options),
+    new Promise<Response>((_, reject) =>
+      setTimeout(() => reject(new Error("Timeout ao chamar API (demorou demais).")), timeoutMs)
+    ),
+  ]);
+}
+
 export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [erro, setErro] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // ✅ Mostra em qual etapa travou
+  const [step, setStep] = useState<string>("");
+
   async function handleRegister(e: React.FormEvent) {
     e.preventDefault();
     setErro("");
+    setStep("");
     setLoading(true);
 
     try {
+      setStep("1/4 Criando usuário...");
+
       // 1) cria usuário no Firebase Auth
       const cred = await createUserWithEmailAndPassword(auth, email, senha);
 
       const user = cred.user;
       if (!user) throw new Error("Falha ao criar usuário.");
+
+      setStep("2/4 Salvando plano trial (5 dias) ...");
 
       // 2) cria dados do plano: 5 dias grátis
       const now = Date.now();
@@ -44,17 +61,21 @@ export default function RegisterPage() {
         { merge: true }
       );
 
-      // ✅ 4) cria cookie de sessão (igual o login)
-      const idToken = await user.getIdToken();
+      setStep("3/4 Criando sessão...");
 
-      const resp = await fetch("/api/session", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      // ✅ 4) cria cookie de sessão (igual o login)
+      const idToken = await user.getIdToken(true);
+
+      const resp = await fetchWithTimeout(
+        "/api/session",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ idToken }),
         },
-        credentials: "include",
-        body: JSON.stringify({ idToken }),
-      });
+        12000 // 12 segundos timeout
+      );
 
       const data = await resp.json();
 
@@ -63,10 +84,12 @@ export default function RegisterPage() {
         throw new Error(data?.error || "Erro ao criar sessão.");
       }
 
-      // ✅ 5) Redireciona do jeito mais confiável
+      setStep("4/4 Entrando no painel...");
+
+      // ✅ Redireciona do jeito mais confiável
       window.location.href = "/dashboard";
     } catch (err: any) {
-      console.log("ERRO FIREBASE:", err);
+      console.log("ERRO REGISTER:", err);
 
       const codigo = err?.code || "";
       if (codigo === "auth/email-already-in-use") {
@@ -78,6 +101,9 @@ export default function RegisterPage() {
       } else {
         setErro(err?.message || "Não foi possível criar sua conta.");
       }
+
+      // ✅ Se travar, ao menos liberar o botão
+      setStep("");
     } finally {
       setLoading(false);
     }
@@ -116,6 +142,13 @@ export default function RegisterPage() {
               required
             />
           </div>
+
+          {/* ✅ mostra etapa atual */}
+          {loading && step && (
+            <div className="text-sm text-blue-800 bg-blue-50 border border-blue-200 px-3 py-2 rounded-xl">
+              {step}
+            </div>
+          )}
 
           {erro && (
             <div className="text-sm text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-xl">
