@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { onAuthStateChanged, signInWithEmailAndPassword } from "firebase/auth";
@@ -93,7 +94,18 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1">Senha</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-sm font-medium">Senha</label>
+
+              {/* ✅ LINK: ESQUECI MINHA SENHA */}
+              <Link
+                href="/forgot-password"
+                className="text-sm text-blue-600 hover:underline"
+              >
+                Esqueci minha senha
+              </Link>
+            </div>
+
             <input
               type="password"
               className="w-full rounded-lg border px-3 py-2"
@@ -111,6 +123,14 @@ export default function LoginPage() {
           >
             {loading ? "Entrando..." : "Entrar"}
           </button>
+
+          {/* ✅ LINK: CRIAR CONTA */}
+          <p className="text-sm text-gray-600 text-center">
+            Ainda não tem conta?{" "}
+            <Link href="/register" className="text-blue-600 hover:underline">
+              Criar conta
+            </Link>
+          </p>
         </form>
       </div>
     </div>
