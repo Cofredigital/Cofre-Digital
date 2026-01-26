@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 
 import { auth, db } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
@@ -9,7 +9,7 @@ import { onAuthStateChanged } from "firebase/auth";
 import {
   addDoc,
   collection,
-  getDocs,
+  onSnapshot,
   orderBy,
   query,
   serverTimestamp,
@@ -24,7 +24,6 @@ type Item = {
   titulo: string;
   tipo: ItemType;
   conteudo: string;
-  criadoEm?: any;
   fileUrl?: string;
   fileName?: string;
 };
@@ -34,10 +33,8 @@ type Item = {
 export default function PastaPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
-  const searchParams = useSearchParams();
 
   const pastaId = params?.id || "";
-  const subFromUrl = searchParams.get("sub") || "";
 
   const [uid, setUid] = useState("");
   const [itens, setItens] = useState<Item[]>([]);
@@ -50,7 +47,7 @@ export default function PastaPage() {
   const [file, setFile] = useState<File | null>(null);
   const [salvando, setSalvando] = useState(false);
 
-  const [qBusca, setQBusca] = useState("");
+  const [busca, setBusca] = useState("");
 
   /* ================= AUTH ================= */
 
@@ -62,28 +59,33 @@ export default function PastaPage() {
       }
       setUid(user.uid);
     });
+
     return () => unsub();
   }, [router]);
 
-  /* ================= LOAD ================= */
+  /* ================= REALTIME LOAD ================= */
 
-  async function carregarItens() {
+  useEffect(() => {
     if (!uid || !pastaId) return;
 
     setLoading(true);
 
     const col = collection(db, "users", uid, "pastas", pastaId, "itens");
+
     const q = query(col, orderBy("criadoEm", "desc"));
 
-    const snap = await getDocs(q);
-    setItens(snap.docs.map(d => ({ id: d.id, ...(d.data() as any) })));
+    const unsub = onSnapshot(q, (snap) => {
+      setItens(
+        snap.docs.map((d) => ({
+          id: d.id,
+          ...(d.data() as any),
+        }))
+      );
+      setLoading(false);
+    });
 
-    setLoading(false);
-  }
-
-  useEffect(() => {
-    carregarItens();
-  }, [uid, pastaId, subFromUrl]);
+    return () => unsub();
+  }, [uid, pastaId]);
 
   /* ================= UPLOAD ================= */
 
@@ -97,6 +99,7 @@ export default function PastaPage() {
     });
 
     const data = await resp.json();
+
     if (!resp.ok) throw new Error("Erro no upload");
 
     return data;
@@ -140,8 +143,6 @@ export default function PastaPage() {
         });
       }
 
-      await carregarItens();
-
       setModalOpen(false);
       setTitulo("");
       setConteudo("");
@@ -158,16 +159,17 @@ export default function PastaPage() {
   /* ================= FILTER ================= */
 
   const itensFiltrados = useMemo(() => {
-    const term = qBusca.toLowerCase();
-    if (!term) return itens;
+    const t = busca.toLowerCase();
 
-    return itens.filter(i =>
+    if (!t) return itens;
+
+    return itens.filter((i) =>
       [i.titulo, i.conteudo, i.tipo, i.fileName]
         .join(" ")
         .toLowerCase()
-        .includes(term)
+        .includes(t)
     );
-  }, [itens, qBusca]);
+  }, [busca, itens]);
 
   /* ================= UI ================= */
 
@@ -178,69 +180,77 @@ export default function PastaPage() {
         Cofre Digital
       </h1>
 
-      <div className="flex gap-3 mb-6">
+      <div className="flex gap-3 mb-8">
 
         <input
-          value={qBusca}
-          onChange={e=>setQBusca(e.target.value)}
+          value={busca}
+          onChange={(e) => setBusca(e.target.value)}
           placeholder="🔍 Buscar itens..."
           className="bg-white/10 border border-yellow-400/30 rounded-xl px-4 py-2 outline-none w-64"
         />
 
         <button
-          onClick={()=>setModalOpen(true)}
-          className="bg-blue-600 hover:bg-blue-700 transition px-6 py-2 rounded-xl font-bold shadow-lg"
+          onClick={() => setModalOpen(true)}
+          className="bg-blue-600 hover:bg-blue-700 transition px-6 py-2 rounded-xl font-bold shadow-xl"
         >
           ➕ Novo item
         </button>
 
       </div>
 
-      {loading ? (
-        <p>Carregando...</p>
-      ) : (
-        <div className="grid md:grid-cols-2 gap-4">
-
-          {itensFiltrados.map(item => (
-            <div
-              key={item.id}
-              className="bg-white/10 border border-yellow-400/20 rounded-2xl p-4 shadow-xl hover:scale-[1.02] transition"
-            >
-              <h3 className="text-lg font-bold text-yellow-300">
-                {item.titulo}
-              </h3>
-
-              <p className="text-sm text-white/80 mt-1">
-                Tipo: {item.tipo}
-              </p>
-
-              {item.conteudo && (
-                <div className="mt-3 bg-black/30 rounded-xl p-3 text-sm">
-                  {item.conteudo}
-                </div>
-              )}
-
-              {item.fileUrl && (
-                <a
-                  href={item.fileUrl}
-                  target="_blank"
-                  className="inline-block mt-3 bg-blue-600 px-4 py-2 rounded-xl font-bold"
-                >
-                  Abrir arquivo
-                </a>
-              )}
-            </div>
-          ))}
-
-        </div>
+      {loading && (
+        <p className="text-yellow-300 animate-pulse">
+          Carregando itens...
+        </p>
       )}
 
-      {/* MODAL */}
+      {!loading && itensFiltrados.length === 0 && (
+        <p className="text-white/70">
+          Nenhum item ainda.
+        </p>
+      )}
+
+      <div className="grid md:grid-cols-2 gap-5">
+
+        {itensFiltrados.map((item) => (
+          <div
+            key={item.id}
+            className="bg-white/10 border border-yellow-400/20 rounded-2xl p-4 shadow-xl hover:scale-[1.03] transition"
+          >
+            <h3 className="text-lg font-bold text-yellow-300">
+              {item.titulo}
+            </h3>
+
+            <p className="text-sm text-white/70 mt-1">
+              {item.tipo}
+            </p>
+
+            {item.conteudo && (
+              <div className="mt-3 bg-black/30 rounded-xl p-3 text-sm">
+                {item.conteudo}
+              </div>
+            )}
+
+            {item.fileUrl && (
+              <a
+                href={item.fileUrl}
+                target="_blank"
+                className="inline-block mt-3 bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-xl font-bold transition"
+              >
+                Abrir arquivo
+              </a>
+            )}
+          </div>
+        ))}
+
+      </div>
+
+      {/* ================= MODAL ================= */}
 
       {modalOpen && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center animate-fadeIn">
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center">
 
-          <div className="bg-white text-black p-6 rounded-3xl w-[420px] shadow-2xl scale-100 animate-slideUp">
+          <div className="bg-white text-black p-6 rounded-3xl w-[420px] shadow-2xl">
 
             <h2 className="text-2xl font-extrabold text-blue-700 mb-3">
               Novo item
@@ -248,14 +258,14 @@ export default function PastaPage() {
 
             <input
               value={titulo}
-              onChange={e=>setTitulo(e.target.value)}
+              onChange={(e) => setTitulo(e.target.value)}
               placeholder="Título"
               className="w-full border rounded-xl p-3 mb-3"
             />
 
             <select
               value={tipo}
-              onChange={e=>setTipo(e.target.value as ItemType)}
+              onChange={(e) => setTipo(e.target.value as ItemType)}
               className="w-full border rounded-xl p-3 mb-3"
             >
               <option value="nota">📝 Nota</option>
@@ -267,13 +277,15 @@ export default function PastaPage() {
             {tipo !== "arquivo" ? (
               <textarea
                 value={conteudo}
-                onChange={e=>setConteudo(e.target.value)}
+                onChange={(e) => setConteudo(e.target.value)}
                 className="w-full border rounded-xl p-3 mb-3 min-h-[120px]"
               />
             ) : (
               <input
                 type="file"
-                onChange={e=>setFile(e.target.files?.[0] || null)}
+                onChange={(e) =>
+                  setFile(e.target.files?.[0] || null)
+                }
                 className="mb-3"
               />
             )}
@@ -281,7 +293,7 @@ export default function PastaPage() {
             <div className="flex gap-3 mt-4">
 
               <button
-                onClick={()=>setModalOpen(false)}
+                onClick={() => setModalOpen(false)}
                 className="flex-1 border rounded-xl py-3 font-bold"
               >
                 Cancelar
