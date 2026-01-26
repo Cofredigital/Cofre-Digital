@@ -30,11 +30,10 @@ export default function ForgotPasswordPage() {
       await sendPasswordResetEmail(auth, value);
 
       setMsg(
-        "Pronto! Enviamos um e-mail para você redefinir sua senha. Verifique sua caixa de entrada e spam."
+        "Pronto! Enviamos um e-mail para você redefinir sua senha. Verifique sua caixa de entrada e também a pasta Spam."
       );
       setEmail("");
     } catch (err: any) {
-      // Mensagem amigável
       const code = err?.code || "";
 
       if (code === "auth/user-not-found") {
@@ -52,109 +51,76 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 16,
-        background: "#f5f7fb",
-      }}
-    >
-      <div
-        style={{
-          width: "100%",
-          maxWidth: 420,
-          background: "white",
-          borderRadius: 16,
-          padding: 20,
-          boxShadow: "0 10px 25px rgba(0,0,0,0.08)",
-        }}
-      >
-        <h1 style={{ fontSize: 22, fontWeight: 800, marginBottom: 6 }}>
-          Recuperar senha
-        </h1>
-        <p style={{ color: "#555", marginBottom: 16 }}>
-          Informe seu e-mail para receber o link de redefinição.
-        </p>
+    <div className="min-h-screen relative overflow-hidden bg-gradient-to-b from-blue-950 via-blue-900 to-slate-950 flex items-center justify-center p-4">
+      {/* brilhos */}
+      <div className="absolute -top-48 left-1/2 -translate-x-1/2 h-[420px] w-[420px] rounded-full bg-blue-500/25 blur-3xl" />
+      <div className="absolute -bottom-48 left-1/3 h-[420px] w-[420px] rounded-full bg-yellow-400/10 blur-3xl" />
 
-        <form onSubmit={handleReset}>
-          <label style={{ fontWeight: 600, fontSize: 14 }}>E-mail</label>
-          <input
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="seuemail@email.com"
-            type="email"
-            style={{
-              width: "100%",
-              height: 44,
-              marginTop: 6,
-              marginBottom: 12,
-              borderRadius: 10,
-              border: "1px solid #d7dbe5",
-              padding: "0 12px",
-              outline: "none",
-            }}
-          />
+      {/* Card */}
+      <div className="relative w-full max-w-md rounded-3xl border border-white/10 bg-white/5 backdrop-blur-xl shadow-2xl p-7">
+        <div className="mb-6">
+          <div className="inline-flex items-center gap-2 rounded-full border border-yellow-400/25 bg-yellow-400/10 px-3 py-1 text-xs text-yellow-200">
+            ✉️ Recuperação de senha
+          </div>
+
+          <h1 className="text-3xl font-extrabold tracking-tight text-white mt-3">
+            Recuperar senha
+          </h1>
+
+          <p className="text-sm text-white/70 mt-1">
+            Informe seu e-mail para receber o link de redefinição.
+          </p>
+        </div>
+
+        <form onSubmit={handleReset} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-white/90 mb-1">
+              E-mail
+            </label>
+            <input
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="seuemail@email.com"
+              type="email"
+              className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder:text-white/35 outline-none focus:border-yellow-400/40 focus:ring-2 focus:ring-yellow-400/15"
+              required
+            />
+          </div>
 
           {error && (
-            <div
-              style={{
-                background: "#fff1f2",
-                border: "1px solid #fecdd3",
-                color: "#b91c1c",
-                padding: 10,
-                borderRadius: 10,
-                fontSize: 14,
-                marginBottom: 12,
-              }}
-            >
-              {error}
+            <div className="rounded-xl border border-red-300/20 bg-red-500/10 p-3 text-sm text-red-100">
+              <b className="text-red-100">Erro:</b> {error}
             </div>
           )}
 
           {msg && (
-            <div
-              style={{
-                background: "#ecfdf5",
-                border: "1px solid #a7f3d0",
-                color: "#065f46",
-                padding: 10,
-                borderRadius: 10,
-                fontSize: 14,
-                marginBottom: 12,
-              }}
-            >
-              {msg}
+            <div className="rounded-xl border border-emerald-300/20 bg-emerald-500/10 p-3 text-sm text-emerald-100">
+              <b className="text-emerald-100">Ok!</b> {msg}
             </div>
           )}
 
           <button
             type="submit"
             disabled={loading}
-            style={{
-              width: "100%",
-              height: 46,
-              borderRadius: 12,
-              border: "none",
-              cursor: loading ? "not-allowed" : "pointer",
-              fontWeight: 800,
-              background: "#0b3bdb",
-              color: "white",
-              opacity: loading ? 0.7 : 1,
-            }}
+            className="w-full rounded-xl py-3 font-bold text-white disabled:opacity-60
+              bg-gradient-to-r from-blue-600 to-blue-500
+              hover:from-blue-500 hover:to-blue-400
+              shadow-lg shadow-blue-500/20
+              border border-white/10"
           >
             {loading ? "Enviando..." : "Enviar link de recuperação"}
           </button>
         </form>
 
-        <div style={{ marginTop: 14, textAlign: "center" }}>
-          <Link href="/login" style={{ color: "#0b3bdb", fontWeight: 700 }}>
+        <div className="mt-5 text-center">
+          <Link
+            href="/login"
+            className="text-sm text-yellow-200 hover:text-yellow-100 underline underline-offset-4 decoration-yellow-200/40 hover:decoration-yellow-200"
+          >
             Voltar para o login
           </Link>
         </div>
       </div>
-    </main>
+    </div>
   );
 }
