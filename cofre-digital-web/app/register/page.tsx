@@ -20,7 +20,7 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      // 1️⃣ Cria usuário no Auth
+      // 1️⃣ Cria usuário no Firebase Auth
       const userCredential = await createUserWithEmailAndPassword(
         auth,
         email,
@@ -29,10 +29,11 @@ export default function RegisterPage() {
 
       const user = userCredential.user;
 
-      // 2️⃣ Salva no Firestore com trial de 5 dias
+      // 2️⃣ Cria trial de 5 dias
       const trialEnd = new Date();
       trialEnd.setDate(trialEnd.getDate() + 5);
 
+      // 3️⃣ Salva no Firestore
       await setDoc(doc(db, "users", user.uid), {
         name: name,
         email: email,
@@ -41,17 +42,17 @@ export default function RegisterPage() {
         plan: "trial",
       });
 
-      // 3️⃣ FINALIZA loading
+      // 4️⃣ Finaliza loading
       setLoading(false);
 
-      // 4️⃣ REDIRECIONA (para painel ou success)
-      router.push("/success"); // se tiver essa página
-      // ou: router.push("/dashboard");
+      // 5️⃣ Redireciona corretamente (NÃO trava mais)
+      router.push("/checkout/success"); 
+      // ou se preferir: router.push("/dashboard");
 
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
       setError("Erro ao criar conta. Verifique os dados.");
-      setLoading(false); // 👈 isso evita travar também
+      setLoading(false); // IMPORTANTE: nunca travar loading
     }
   }
 
@@ -102,6 +103,7 @@ export default function RegisterPage() {
         <p className="text-sm text-gray-600 mt-4">
           Você terá acesso completo por 5 dias grátis.
         </p>
+
       </div>
 
     </div>
