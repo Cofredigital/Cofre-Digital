@@ -4,7 +4,6 @@ import { useState } from "react";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { doc, setDoc, Timestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
-import { useRouter } from "next/navigation";
 
 export default function RegisterPage() {
   const [name, setName] = useState("");
@@ -13,29 +12,26 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const router = useRouter();
-
   async function handleRegister() {
     if (loading) return;
 
-    setError("");
     setLoading(true);
+    setError("");
 
     try {
-      // ✅ Cria usuário no Firebase Auth
-      const userCredential = await createUserWithEmailAndPassword(
+      // ✅ Cria usuário
+      const cred = await createUserWithEmailAndPassword(
         auth,
         email,
         password
       );
 
-      const user = userCredential.user;
+      const user = cred.user;
 
-      // ✅ Trial de 5 dias
+      // ✅ Trial 5 dias
       const trialEnd = new Date();
       trialEnd.setDate(trialEnd.getDate() + 5);
 
-      // ✅ Salva no Firestore
       await setDoc(doc(db, "users", user.uid), {
         name,
         email,
@@ -44,16 +40,15 @@ export default function RegisterPage() {
         trialEndsAt: Timestamp.fromDate(trialEnd),
       });
 
-      // ✅ FINALIZA loading ANTES de redirecionar
-      setLoading(false);
+      // ✅ Aguarda Firebase estabilizar sessão
+      await new Promise((r) => setTimeout(r, 800));
 
-      // ✅ REDIRECIONA FORÇADO
-      window.location.href = "/dashboard";
+      // ✅ Redirecionamento LIMPO
+      window.location.replace("/dashboard");
 
     } catch (err) {
       console.error(err);
-
-      setError("Erro ao criar conta. Tente novamente.");
+      setError("Erro ao criar conta.");
       setLoading(false);
     }
   }
@@ -97,7 +92,7 @@ export default function RegisterPage() {
         <button
           onClick={handleRegister}
           disabled={loading}
-          className="bg-yellow-400 hover:bg-yellow-500 text-black font-bold py-2 px-4 rounded w-full transition"
+          className="bg-yellow-400 hover:bg-yellow-500 text-black font-bold py-2 px-4 rounded w-full"
         >
           {loading ? "Criando conta..." : "Criar conta"}
         </button>
