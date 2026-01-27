@@ -11,21 +11,19 @@ export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
 
   const router = useRouter();
 
   async function handleRegister() {
     if (!name || !email || !password) {
-      setError("Preencha todos os campos");
+      alert("Preencha todos os campos");
       return;
     }
 
     try {
       setLoading(true);
-      setError("");
 
-      // cria usuário no Auth
+      // 1️⃣ Cria usuário no Auth
       const userCredential = await createUserWithEmailAndPassword(
         auth,
         email,
@@ -34,84 +32,76 @@ export default function RegisterPage() {
 
       const user = userCredential.user;
 
-      // calcula 5 dias de trial
+      // 2️⃣ Calcula 5 dias grátis
+      const now = new Date();
       const trialEnd = new Date();
-      trialEnd.setDate(trialEnd.getDate() + 5);
+      trialEnd.setDate(now.getDate() + 5);
 
-      // salva no Firestore
+      // 3️⃣ Salva no Firestore
       await setDoc(doc(db, "users", user.uid), {
-        name,
-        email,
-        plan: "trial",
-        trialStart: Timestamp.now(),
+        name: name,
+        email: email,
+        createdAt: Timestamp.fromDate(now),
         trialEnd: Timestamp.fromDate(trialEnd),
-        createdAt: Timestamp.now(),
+        plan: "free-trial",
       });
 
-      // redireciona para o cofre
-      router.push("/pasta");
-
-    } catch (err: any) {
-      console.error(err);
-      setError("Erro ao criar conta. Verifique os dados.");
+      // 4️⃣ Finaliza loading e vai pro painel
       setLoading(false);
+      router.push("/panel");
+
+    } catch (error: any) {
+      console.error(error);
+      setLoading(false);
+      alert("Erro ao criar conta: " + error.message);
     }
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-gradient-to-b from-blue-700 to-blue-900 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-blue-700 to-blue-900">
+      <div className="bg-blue-800 p-8 rounded-xl w-full max-w-md shadow-xl">
 
-      <div className="bg-blue-800/90 p-8 rounded-2xl shadow-2xl w-full max-w-md text-center">
-
-        <h1 className="text-3xl font-bold text-yellow-400 mb-6">
+        <h1 className="text-yellow-400 text-2xl font-bold text-center mb-6">
           Criar conta grátis
         </h1>
 
-        <div className="space-y-4">
+        <input
+          type="text"
+          placeholder="Nome"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          className="w-full p-3 rounded mb-3 text-black"
+        />
 
-          <input
-            type="text"
-            placeholder="Nome"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="w-full px-4 py-3 rounded-lg bg-white text-black outline-none focus:ring-2 focus:ring-yellow-400"
-          />
+        <input
+          type="email"
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="w-full p-3 rounded mb-3 text-black"
+        />
 
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full px-4 py-3 rounded-lg bg-white text-black outline-none focus:ring-2 focus:ring-yellow-400"
-          />
+        <input
+          type="password"
+          placeholder="Senha"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className="w-full p-3 rounded mb-4 text-black"
+        />
 
-          <input
-            type="password"
-            placeholder="Senha"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full px-4 py-3 rounded-lg bg-white text-black outline-none focus:ring-2 focus:ring-yellow-400"
-          />
+        <button
+          onClick={handleRegister}
+          disabled={loading}
+          className="w-full bg-yellow-400 hover:bg-yellow-500 text-black font-bold py-3 rounded"
+        >
+          {loading ? "Criando conta..." : "Criar conta"}
+        </button>
 
-          {error && (
-            <p className="text-red-300 text-sm">{error}</p>
-          )}
+        <p className="text-center text-white mt-4 text-sm">
+          Você terá acesso completo por 5 dias grátis.
+        </p>
 
-          <button
-            onClick={handleRegister}
-            disabled={loading}
-            className="w-full bg-yellow-400 hover:bg-yellow-500 text-blue-900 font-bold py-3 rounded-lg transition disabled:opacity-60"
-          >
-            {loading ? "Criando conta..." : "Criar conta"}
-          </button>
-
-          <p className="text-blue-200 text-sm mt-4">
-            Você terá acesso completo por <b>5 dias grátis</b>.
-          </p>
-
-        </div>
       </div>
-
-    </main>
+    </div>
   );
 }
