@@ -1,133 +1,80 @@
+"use client";
+
 import Link from "next/link";
 
 export default function HomePage() {
   return (
-    <main className="min-h-screen bg-gradient-to-b from-blue-700 via-blue-700 to-blue-800">
+    <main className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-black text-white">
+
       {/* HERO */}
-      <section className="max-w-6xl mx-auto px-4 py-14">
-        <div className="grid lg:grid-cols-2 gap-10 items-center">
-          {/* Esquerda */}
-          <div className="space-y-7">
-            <div className="inline-flex items-center gap-2 rounded-full bg-white/15 border border-white/20 px-4 py-2 text-sm text-white">
-              🔐 Cofre Digital • Segurança + organização
-            </div>
+      <section className="max-w-7xl mx-auto px-6 pt-28 pb-20 grid md:grid-cols-2 gap-12 items-center">
 
-            <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight text-white leading-[1.05]">
-              Organização digital não é luxo — é{" "}
-              <span className="text-indigo-200">proteção</span>.
-            </h1>
+        <div>
+          <h1 className="text-5xl font-extrabold mb-6 leading-tight">
+            Organização digital não é luxo <br /> — é proteção.
+          </h1>
 
-            <p className="text-lg md:text-xl text-blue-100 max-w-xl">
-              Guarde com segurança senhas, contas, documentos, bancos,
-              assinaturas e tudo que você precisar — em um só lugar.
-            </p>
+          <p className="text-blue-100 mb-8 text-lg">
+            Guarde com segurança senhas, contas, documentos, bancos, assinaturas
+            e tudo que você precisar — em um só lugar.
+          </p>
 
-            {/* Botões */}
-            <div className="flex flex-col sm:flex-row gap-3">
-              <Link
-                href="/register"
-                className="px-7 py-3 rounded-2xl bg-white text-blue-800 font-semibold hover:bg-blue-50 transition text-center"
-              >
-                Criar minha conta
-              </Link>
+          <div className="flex gap-4 flex-wrap">
+            <Link
+              href="/register"
+              className="bg-yellow-400 text-black px-6 py-3 rounded-xl font-semibold hover:bg-yellow-300 transition"
+            >
+              Criar conta grátis
+            </Link>
 
-              <Link
-                href="/planos"
-                className="px-7 py-3 rounded-2xl bg-white/10 border border-white/20 text-white font-semibold hover:bg-white/15 transition text-center"
-              >
-                Ver planos
-              </Link>
-            </div>
-
-            {/* Benefícios */}
-            <div className="grid sm:grid-cols-2 gap-3 pt-4">
-              {[
-                "✅ Bancos e cartões",
-                "✅ Contas a pagar",
-                "✅ Streaming e assinaturas",
-                "✅ Certidões e documentos",
-              ].map((item) => (
-                <div
-                  key={item}
-                  className="rounded-2xl border border-white/20 bg-white/10 px-4 py-3 text-white"
-                >
-                  {item}
-                </div>
-              ))}
-            </div>
-
-            <p className="text-blue-100/80 text-sm pt-2">
-              Quem se prepara hoje evita sofrimento amanhã.
-            </p>
+            <Link
+              href="/planos"
+              className="bg-blue-600 px-6 py-3 rounded-xl font-semibold hover:bg-blue-500 transition"
+            >
+              Ver planos
+            </Link>
           </div>
 
-          {/* Direita */}
-          <div className="flex justify-center">
-            <div className="w-full max-w-xl rounded-[34px] border border-white/15 bg-white/10 shadow-2xl shadow-black/20 overflow-hidden backdrop-blur-xl">
-              <div className="p-5">
-                {/* Imagem */}
-                <div className="rounded-3xl overflow-hidden border border-white/10 bg-black/10">
-                  <img
-                    src="/hero-cofre.png"
-                    alt="Cofre Digital"
-                    className="w-full h-[320px] object-cover"
-                  />
-                </div>
+          <div className="grid grid-cols-2 gap-4 mt-10 text-sm">
+            <span className="bg-blue-700/40 p-3 rounded-lg">✅ Bancos e cartões</span>
+            <span className="bg-blue-700/40 p-3 rounded-lg">✅ Contas a pagar</span>
+            <span className="bg-blue-700/40 p-3 rounded-lg">✅ Streaming e assinaturas</span>
+            <span className="bg-blue-700/40 p-3 rounded-lg">✅ Documentos importantes</span>
+          </div>
+        </div>
 
-                {/* Lista de benefícios */}
-                <div className="mt-5 grid grid-cols-2 gap-3 text-sm text-white">
-                  <div className="flex items-center gap-2">
-                    <span>✅</span> Backup e segurança
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span>✅</span> Pastas ilimitadas
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span>✅</span> Acesso rápido
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span>✅</span> Organização total
-                  </div>
-                </div>
+        <div className="bg-blue-700/30 rounded-3xl p-6 shadow-xl">
+          <img
+            src="https://images.unsplash.com/photo-1614064641938-3bbee52942c7"
+            alt="Cofre digital"
+            className="rounded-2xl w-full object-cover"
+          />
 
-                {/* Botões */}
-                <div className="mt-6 flex flex-col sm:flex-row gap-3">
-                  <Link
-                    href="/planos"
-                    className="w-full px-5 py-3 rounded-2xl bg-emerald-600 text-white font-semibold hover:bg-emerald-700 transition text-center"
-                  >
-                    Começar com 24h • R$ 9,90
-                  </Link>
+          <div className="grid grid-cols-2 gap-3 mt-6 text-sm">
+            <span>✅ Backup seguro</span>
+            <span>✅ Pastas ilimitadas</span>
+            <span>✅ Acesso rápido</span>
+            <span>✅ Organização total</span>
+          </div>
 
-                  <Link
-                    href="/login"
-                    className="w-full px-5 py-3 rounded-2xl bg-white text-blue-800 font-semibold hover:bg-blue-50 transition text-center"
-                  >
-                    Entrar
-                  </Link>
-                </div>
+          <div className="flex gap-4 mt-6">
+            <Link
+              href="/register"
+              className="bg-green-500 px-5 py-3 rounded-xl font-semibold hover:bg-green-400 transition"
+            >
+              Começar grátis por 5 dias
+            </Link>
 
-                {/* Rodapé do card */}
-                <div className="mt-5 rounded-2xl bg-white/10 border border-white/15 p-4 text-white/90 text-sm">
-                  🔒 Login e dados protegidos • Cofre Digital
-                </div>
-              </div>
-            </div>
+            <Link
+              href="/login"
+              className="bg-white text-black px-5 py-3 rounded-xl font-semibold hover:bg-gray-200 transition"
+            >
+              Entrar
+            </Link>
           </div>
         </div>
       </section>
 
-      {/* Faixa inferior */}
-      <section className="border-t border-white/15">
-        <div className="max-w-6xl mx-auto px-4 py-10 text-center">
-          <p className="text-white font-medium">
-            “Organização digital não é luxo — é proteção.”
-          </p>
-          <p className="text-xs text-blue-100/80 mt-1">
-            Cofre Digital — Proteja o que é importante
-          </p>
-        </div>
-      </section>
     </main>
   );
 }
