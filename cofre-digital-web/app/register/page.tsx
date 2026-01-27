@@ -16,11 +16,12 @@ export default function RegisterPage() {
   const router = useRouter();
 
   async function handleRegister() {
-    setError("");
+    if (loading) return;
+
     setLoading(true);
+    setError("");
 
     try {
-      // 1️⃣ Cria usuário no Firebase Auth
       const userCredential = await createUserWithEmailAndPassword(
         auth,
         email,
@@ -29,36 +30,32 @@ export default function RegisterPage() {
 
       const user = userCredential.user;
 
-      // 2️⃣ Cria trial de 5 dias
       const trialEnd = new Date();
       trialEnd.setDate(trialEnd.getDate() + 5);
 
-      // 3️⃣ Salva no Firestore
       await setDoc(doc(db, "users", user.uid), {
-        name: name,
-        email: email,
+        name,
+        email,
         createdAt: Timestamp.now(),
         trialEndsAt: Timestamp.fromDate(trialEnd),
         plan: "trial",
       });
 
-      // 4️⃣ Finaliza loading
+      // ✅ sempre finaliza loading antes de redirecionar
       setLoading(false);
 
-      // 5️⃣ Redireciona corretamente (NÃO trava mais)
-      router.push("/checkout/success"); 
-      // ou se preferir: router.push("/dashboard");
+      // ✅ redirect garantido
+      window.location.href = "/checkout/success";
 
     } catch (err) {
       console.error(err);
       setError("Erro ao criar conta. Verifique os dados.");
-      setLoading(false); // IMPORTANTE: nunca travar loading
+      setLoading(false);
     }
   }
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gradient-to-b from-blue-600 to-blue-800">
-
       <div className="bg-white p-8 rounded-xl shadow-xl w-full max-w-sm text-center">
 
         <h1 className="text-2xl font-bold mb-6 text-blue-700">
@@ -88,9 +85,7 @@ export default function RegisterPage() {
           onChange={(e) => setPassword(e.target.value)}
         />
 
-        {error && (
-          <p className="text-red-600 mb-3">{error}</p>
-        )}
+        {error && <p className="text-red-600 mb-3">{error}</p>}
 
         <button
           onClick={handleRegister}
@@ -103,9 +98,7 @@ export default function RegisterPage() {
         <p className="text-sm text-gray-600 mt-4">
           Você terá acesso completo por 5 dias grátis.
         </p>
-
       </div>
-
     </div>
   );
 }
