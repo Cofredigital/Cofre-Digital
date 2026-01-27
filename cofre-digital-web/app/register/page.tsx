@@ -11,16 +11,19 @@ export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
 
   const router = useRouter();
 
   async function handleRegister() {
+    if (!name || !email || !password) {
+      alert("Preencha todos os campos");
+      return;
+    }
+
     try {
       setLoading(true);
-      setError("");
 
-      // ✅ Cria usuário no Auth
+      // 1️⃣ Cria usuário no Auth
       const userCredential = await createUserWithEmailAndPassword(
         auth,
         email,
@@ -29,75 +32,66 @@ export default function RegisterPage() {
 
       const user = userCredential.user;
 
-      // 📅 Data atual
-      const now = Timestamp.now();
-
-      // 📅 Trial = agora + 5 dias
-      const fiveDaysLater = Timestamp.fromDate(
-        new Date(Date.now() + 5 * 24 * 60 * 60 * 1000)
-      );
-
-      // ✅ Salva no Firestore
+      // 2️⃣ Salva dados no Firestore
       await setDoc(doc(db, "users", user.uid), {
         name: name,
         email: email,
+        createdAt: Timestamp.now(),
         plan: "free",
-        createdAt: now,
-        trialEndsAt: fiveDaysLater,
+        trialEndsAt: Timestamp.fromDate(
+          new Date(Date.now() + 5 * 24 * 60 * 60 * 1000) // +5 dias
+        ),
       });
 
-      // ✅ Vai para o painel
-      router.push("/painel");
+      // 3️⃣ Redireciona após sucesso
+      router.push("/dashboard");
 
-    } catch (err: any) {
-      console.error(err);
-      setError("Erro ao criar conta. Verifique os dados.");
+    } catch (error: any) {
+      console.error(error);
+      alert("Erro ao criar conta: " + error.message);
+
     } finally {
+      // 4️⃣ SEMPRE libera o loading (isso estava faltando!)
       setLoading(false);
     }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-blue-700 to-blue-900">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-blue-600 to-blue-900">
 
-      <div className="bg-blue-800 p-8 rounded-2xl shadow-xl w-full max-w-md text-center">
+      <div className="bg-blue-700 p-8 rounded-xl w-[350px] text-center shadow-xl">
 
         <h1 className="text-yellow-400 text-2xl font-bold mb-6">
           Criar conta grátis
         </h1>
 
         <input
-          type="text"
+          className="w-full p-3 mb-3 rounded"
           placeholder="Nome"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="w-full mb-3 p-3 rounded-lg"
         />
 
         <input
-          type="email"
+          className="w-full p-3 mb-3 rounded"
           placeholder="Email"
+          type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="w-full mb-3 p-3 rounded-lg"
         />
 
         <input
-          type="password"
+          className="w-full p-3 mb-4 rounded"
           placeholder="Senha"
+          type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="w-full mb-4 p-3 rounded-lg"
         />
-
-        {error && (
-          <p className="text-red-400 mb-3">{error}</p>
-        )}
 
         <button
           onClick={handleRegister}
           disabled={loading}
-          className="w-full bg-yellow-400 hover:bg-yellow-500 text-black font-semibold py-3 rounded-lg transition"
+          className="w-full bg-yellow-400 text-black font-bold py-3 rounded hover:bg-yellow-500 transition"
         >
           {loading ? "Criando conta..." : "Criar conta"}
         </button>
@@ -107,7 +101,6 @@ export default function RegisterPage() {
         </p>
 
       </div>
-
     </div>
   );
 }
