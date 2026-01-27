@@ -68,10 +68,7 @@ export default function PastaPage() {
   useEffect(() => {
     if (!uid || !pastaId) return;
 
-    setLoading(true);
-
     const col = collection(db, "users", uid, "pastas", pastaId, "itens");
-
     const q = query(col, orderBy("criadoEm", "desc"));
 
     const unsub = onSnapshot(q, (snap) => {
@@ -98,11 +95,9 @@ export default function PastaPage() {
       body: form,
     });
 
-    const data = await resp.json();
+    if (!resp.ok) throw new Error("Erro upload");
 
-    if (!resp.ok) throw new Error("Erro no upload");
-
-    return data;
+    return await resp.json();
   }
 
   /* ================= CREATE ================= */
@@ -118,6 +113,8 @@ export default function PastaPage() {
     if (tipo === "arquivo" && !file)
       return alert("Selecione o arquivo");
 
+    // FECHA MODAL IMEDIATO (UX PRO)
+    setModalOpen(false);
     setSalvando(true);
 
     try {
@@ -143,14 +140,15 @@ export default function PastaPage() {
         });
       }
 
-      setModalOpen(false);
+      // limpa campos
       setTitulo("");
       setConteudo("");
       setFile(null);
       setTipo("nota");
 
-    } catch {
+    } catch (err) {
       alert("Erro ao salvar item");
+      console.error(err);
     } finally {
       setSalvando(false);
     }
@@ -176,7 +174,7 @@ export default function PastaPage() {
   return (
     <main className="min-h-screen bg-gradient-to-br from-blue-950 via-blue-900 to-black text-white p-10">
 
-      <h1 className="text-4xl font-extrabold mb-6 text-yellow-400 drop-shadow">
+      <h1 className="text-4xl font-extrabold mb-6 text-yellow-400">
         Cofre Digital
       </h1>
 
@@ -191,7 +189,7 @@ export default function PastaPage() {
 
         <button
           onClick={() => setModalOpen(true)}
-          className="bg-blue-600 hover:bg-blue-700 transition px-6 py-2 rounded-xl font-bold shadow-xl"
+          className="bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded-xl font-bold transition"
         >
           ➕ Novo item
         </button>
@@ -204,29 +202,23 @@ export default function PastaPage() {
         </p>
       )}
 
-      {!loading && itensFiltrados.length === 0 && (
-        <p className="text-white/70">
-          Nenhum item ainda.
-        </p>
-      )}
-
       <div className="grid md:grid-cols-2 gap-5">
 
         {itensFiltrados.map((item) => (
           <div
             key={item.id}
-            className="bg-white/10 border border-yellow-400/20 rounded-2xl p-4 shadow-xl hover:scale-[1.03] transition"
+            className="bg-white/10 border border-yellow-400/20 rounded-2xl p-4 hover:scale-[1.03] transition"
           >
-            <h3 className="text-lg font-bold text-yellow-300">
+            <h3 className="font-bold text-yellow-300">
               {item.titulo}
             </h3>
 
-            <p className="text-sm text-white/70 mt-1">
+            <p className="text-sm opacity-70">
               {item.tipo}
             </p>
 
             {item.conteudo && (
-              <div className="mt-3 bg-black/30 rounded-xl p-3 text-sm">
+              <div className="mt-3 bg-black/30 p-3 rounded-xl text-sm">
                 {item.conteudo}
               </div>
             )}
@@ -235,7 +227,7 @@ export default function PastaPage() {
               <a
                 href={item.fileUrl}
                 target="_blank"
-                className="inline-block mt-3 bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-xl font-bold transition"
+                className="inline-block mt-3 bg-blue-600 px-4 py-2 rounded-xl font-bold hover:bg-blue-700 transition"
               >
                 Abrir arquivo
               </a>
@@ -250,9 +242,9 @@ export default function PastaPage() {
       {modalOpen && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center">
 
-          <div className="bg-white text-black p-6 rounded-3xl w-[420px] shadow-2xl">
+          <div className="bg-white text-black p-6 rounded-3xl w-[420px]">
 
-            <h2 className="text-2xl font-extrabold text-blue-700 mb-3">
+            <h2 className="text-2xl font-bold text-blue-700 mb-3">
               Novo item
             </h2>
 
@@ -286,7 +278,6 @@ export default function PastaPage() {
                 onChange={(e) =>
                   setFile(e.target.files?.[0] || null)
                 }
-                className="mb-3"
               />
             )}
 
@@ -302,7 +293,7 @@ export default function PastaPage() {
               <button
                 onClick={criarItem}
                 disabled={salvando}
-                className="flex-1 bg-blue-600 text-white rounded-xl py-3 font-extrabold hover:bg-blue-700 transition"
+                className="flex-1 bg-blue-600 text-white rounded-xl py-3 font-bold"
               >
                 {salvando ? "Salvando..." : "Salvar"}
               </button>
