@@ -18,8 +18,8 @@ export default function RegisterPage() {
   async function handleRegister() {
     if (loading) return;
 
-    setLoading(true);
     setError("");
+    setLoading(true);
 
     try {
       // ✅ Cria usuário no Firebase Auth
@@ -39,17 +39,21 @@ export default function RegisterPage() {
       await setDoc(doc(db, "users", user.uid), {
         name,
         email,
+        plan: "trial",
         createdAt: Timestamp.now(),
         trialEndsAt: Timestamp.fromDate(trialEnd),
-        plan: "trial",
       });
 
-      // ✅ REDIRECIONA PARA O PAINEL (não trava mais)
-      router.replace("/dashboard");
+      // ✅ FINALIZA loading ANTES de redirecionar
+      setLoading(false);
+
+      // ✅ REDIRECIONA FORÇADO
+      window.location.href = "/dashboard";
 
     } catch (err) {
       console.error(err);
-      setError("Erro ao criar conta. Verifique email e senha.");
+
+      setError("Erro ao criar conta. Tente novamente.");
       setLoading(false);
     }
   }
@@ -103,6 +107,7 @@ export default function RegisterPage() {
         </p>
 
       </div>
+
     </div>
   );
 }
