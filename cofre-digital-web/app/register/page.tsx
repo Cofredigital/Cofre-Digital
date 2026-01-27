@@ -20,7 +20,7 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      // cria no Auth
+      // 1️⃣ Cria usuário no Auth
       const userCredential = await createUserWithEmailAndPassword(
         auth,
         email,
@@ -29,106 +29,81 @@ export default function RegisterPage() {
 
       const user = userCredential.user;
 
-      // data de teste grátis: agora + 5 dias
+      // 2️⃣ Salva no Firestore com trial de 5 dias
       const trialEnd = new Date();
       trialEnd.setDate(trialEnd.getDate() + 5);
 
-      // salva no Firestore
       await setDoc(doc(db, "users", user.uid), {
-        name,
-        email,
+        name: name,
+        email: email,
         createdAt: Timestamp.now(),
         trialEndsAt: Timestamp.fromDate(trialEnd),
-        plan: "trial"
+        plan: "trial",
       });
 
-      // FINALIZA loading
+      // 3️⃣ FINALIZA loading
       setLoading(false);
 
-      // redireciona
-      router.push("/success");
+      // 4️⃣ REDIRECIONA (para painel ou success)
+      router.push("/success"); // se tiver essa página
+      // ou: router.push("/dashboard");
 
     } catch (err: any) {
       console.error(err);
-      setError("Erro ao criar conta. Tente novamente.");
-      setLoading(false);
+      setError("Erro ao criar conta. Verifique os dados.");
+      setLoading(false); // 👈 isso evita travar também
     }
   }
 
   return (
-    <div style={{
-      minHeight: "100vh",
-      background: "linear-gradient(180deg,#0d2fb8,#1146ff)",
-      display: "flex",
-      justifyContent: "center",
-      alignItems: "center"
-    }}>
-      <div style={{
-        background: "#ffffff",
-        padding: "40px",
-        borderRadius: "12px",
-        width: "320px",
-        textAlign: "center"
-      }}>
-        <h2 style={{ marginBottom: "20px", color: "#1146ff" }}>
+    <div className="flex items-center justify-center min-h-screen bg-gradient-to-b from-blue-600 to-blue-800">
+
+      <div className="bg-white p-8 rounded-xl shadow-xl w-full max-w-sm text-center">
+
+        <h1 className="text-2xl font-bold mb-6 text-blue-700">
           Criar conta grátis
-        </h2>
+        </h1>
 
         <input
+          className="w-full border rounded px-3 py-2 mb-3"
           placeholder="Nome"
           value={name}
-          onChange={e => setName(e.target.value)}
-          style={inputStyle}
+          onChange={(e) => setName(e.target.value)}
         />
 
         <input
+          className="w-full border rounded px-3 py-2 mb-3"
           placeholder="Email"
+          type="email"
           value={email}
-          onChange={e => setEmail(e.target.value)}
-          style={inputStyle}
+          onChange={(e) => setEmail(e.target.value)}
         />
 
         <input
-          type="password"
+          className="w-full border rounded px-3 py-2 mb-4"
           placeholder="Senha"
+          type="password"
           value={password}
-          onChange={e => setPassword(e.target.value)}
-          style={inputStyle}
+          onChange={(e) => setPassword(e.target.value)}
         />
 
         {error && (
-          <p style={{ color: "red", fontSize: "14px" }}>{error}</p>
+          <p className="text-red-600 mb-3">{error}</p>
         )}
 
         <button
           onClick={handleRegister}
           disabled={loading}
-          style={{
-            background: "#ffcc00",
-            border: "none",
-            padding: "12px",
-            width: "100%",
-            borderRadius: "6px",
-            cursor: "pointer",
-            fontWeight: "bold",
-            marginTop: "10px"
-          }}
+          className="bg-yellow-400 hover:bg-yellow-500 text-black font-bold py-2 px-4 rounded w-full transition"
         >
           {loading ? "Criando conta..." : "Criar conta"}
         </button>
 
-        <p style={{ marginTop: "12px", fontSize: "13px" }}>
+        <p className="text-sm text-gray-600 mt-4">
           Você terá acesso completo por 5 dias grátis.
         </p>
       </div>
+
     </div>
   );
 }
-
-const inputStyle = {
-  width: "100%",
-  padding: "10px",
-  marginBottom: "12px",
-  borderRadius: "6px",
-  border: "1px solid #ccc"
-};
