@@ -16,16 +16,11 @@ export default function RegisterPage() {
   const router = useRouter();
 
   async function handleRegister() {
-    if (!name || !email || !password) {
-      setError("Preencha todos os campos");
-      return;
-    }
-
     setError("");
     setLoading(true);
 
     try {
-      // 🔐 Cria usuário no Firebase Auth
+      // ✅ cria usuário
       const userCredential = await createUserWithEmailAndPassword(
         auth,
         email,
@@ -34,11 +29,10 @@ export default function RegisterPage() {
 
       const user = userCredential.user;
 
-      // ⏳ Trial de 5 dias
+      // ✅ trial de 5 dias
       const trialEnd = new Date();
       trialEnd.setDate(trialEnd.getDate() + 5);
 
-      // 💾 Salva no Firestore
       await setDoc(doc(db, "users", user.uid), {
         name,
         email,
@@ -47,11 +41,15 @@ export default function RegisterPage() {
         plan: "trial",
       });
 
-      // ✅ Redireciona (NÃO trava mais)
+      // ✅ FINALIZA loading ANTES de navegar
+      setLoading(false);
+
+      // 👉 manda direto para planos (não trava mais)
       router.push("/planos");
 
     } catch (err) {
       console.error(err);
+
       setError("Erro ao criar conta. Verifique os dados.");
       setLoading(false);
     }
@@ -59,7 +57,6 @@ export default function RegisterPage() {
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gradient-to-b from-blue-600 to-blue-800">
-
       <div className="bg-white p-8 rounded-xl shadow-xl w-full max-w-sm text-center">
 
         <h1 className="text-2xl font-bold mb-6 text-blue-700">
@@ -104,6 +101,7 @@ export default function RegisterPage() {
         <p className="text-sm text-gray-600 mt-4">
           Você terá acesso completo por 5 dias grátis.
         </p>
+
       </div>
     </div>
   );
