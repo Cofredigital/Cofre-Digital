@@ -4,6 +4,7 @@ import { useState } from "react";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { doc, setDoc, Timestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
+import { useRouter } from "next/navigation";
 
 export default function RegisterPage() {
   const [name, setName] = useState("");
@@ -12,6 +13,8 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  const router = useRouter();
+
   async function handleRegister() {
     if (loading) return;
 
@@ -19,43 +22,45 @@ export default function RegisterPage() {
     setError("");
 
     try {
-      // ✅ Cria usuário
-      const cred = await createUserWithEmailAndPassword(
+      // ✅ cria no Firebase Auth
+      const userCredential = await createUserWithEmailAndPassword(
         auth,
         email,
         password
       );
 
-      const user = cred.user;
+      const user = userCredential.user;
 
-      // ✅ Trial 5 dias
+      // ✅ calcula trial 5 dias
       const trialEnd = new Date();
       trialEnd.setDate(trialEnd.getDate() + 5);
 
-      await setDoc(doc(db, "users", user.uid), {
-        name,
-        email,
-        plan: "trial",
-        createdAt: Timestamp.now(),
-        trialEndsAt: Timestamp.fromDate(trialEnd),
-      });
+      // ✅ tenta salvar no Firestore (SEM travar o sistema)
+      try {
+        await setDoc(doc(db, "users", user.uid), {
+          name,
+          email,
+          createdAt: Timestamp.now(),
+          trialEndsAt: Timestamp.fromDate(trialEnd),
+          plan: "trial",
+        });
+      } catch (firestoreError) {
+        console.error("Erro Firestore (não trava):", firestoreError);
+      }
 
-      // ✅ Aguarda Firebase estabilizar sessão
-      await new Promise((r) => setTimeout(r, 800));
+      // ✅ SEMPRE REDIRECIONA
+      router.push("/dashboard");
 
-      // ✅ Redirecionamento LIMPO
-      window.location.replace("/dashboard");
+    } catch (authError: any) {
+      console.error(authError);
 
-    } catch (err) {
-      console.error(err);
-      setError("Erro ao criar conta.");
+      setError("Erro ao criar conta. Verifique email e senha.");
       setLoading(false);
     }
   }
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gradient-to-b from-blue-600 to-blue-800">
-
       <div className="bg-white p-8 rounded-xl shadow-xl w-full max-w-sm text-center">
 
         <h1 className="text-2xl font-bold mb-6 text-blue-700">
@@ -92,7 +97,7 @@ export default function RegisterPage() {
         <button
           onClick={handleRegister}
           disabled={loading}
-          className="bg-yellow-400 hover:bg-yellow-500 text-black font-bold py-2 px-4 rounded w-full"
+          className="bg-yellow-400 hover:bg-yellow-500 text-black font-bold py-2 px-4 rounded w-full transition"
         >
           {loading ? "Criando conta..." : "Criar conta"}
         </button>
@@ -100,9 +105,7 @@ export default function RegisterPage() {
         <p className="text-sm text-gray-600 mt-4">
           Você terá acesso completo por 5 dias grátis.
         </p>
-
       </div>
-
     </div>
   );
 }
