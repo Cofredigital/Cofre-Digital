@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { doc, setDoc, Timestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
-import { useRouter } from "next/navigation";
 
 export default function RegisterPage() {
   const [name, setName] = useState("");
@@ -24,67 +24,80 @@ export default function RegisterPage() {
         password
       );
 
-      const uid = userCredential.user.uid;
+      const user = userCredential.user;
 
-      // 👉 cria data de teste grátis (5 dias)
-      const trialEnds = new Date();
-      trialEnds.setDate(trialEnds.getDate() + 5);
+      // Data atual
+      const now = Timestamp.now();
 
-      await setDoc(doc(db, "users", uid), {
+      // Trial de 5 dias
+      const trialEndsAt = Timestamp.fromMillis(
+        now.toMillis() + 5 * 24 * 60 * 60 * 1000
+      );
+
+      await setDoc(doc(db, "users", user.uid), {
         name,
         email,
-        plan: "free_trial",
-        trialEndsAt: Timestamp.fromDate(trialEnds),
-        createdAt: Timestamp.now(),
+        plan: "trial",
+        status: "active",
+        createdAt: now,
+        trialEndsAt: trialEndsAt,
       });
 
       router.push("/dashboard");
     } catch (error: any) {
-      alert(error.message);
+      alert("Erro ao criar conta: " + error.message);
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-gradient-to-b from-blue-900 to-blue-700 text-white px-4">
-      <div className="bg-blue-800 p-8 rounded-2xl shadow-xl w-full max-w-md">
+    <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-700 to-blue-900 text-white px-4">
+      <div className="bg-blue-800/60 backdrop-blur rounded-2xl p-8 w-full max-w-md shadow-2xl">
 
-        <h1 className="text-3xl font-bold mb-6 text-center">
+        <h1 className="text-3xl font-bold mb-6 text-center text-yellow-400">
           Criar conta grátis
         </h1>
 
-        <input
-          type="text"
-          placeholder="Seu nome"
-          className="w-full mb-3 px-4 py-2 rounded text-black"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
+        <div className="space-y-4">
 
-        <input
-          type="email"
-          placeholder="Email"
-          className="w-full mb-3 px-4 py-2 rounded text-black"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
+          <input
+            type="text"
+            placeholder="Seu nome"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="w-full px-4 py-3 rounded-lg bg-white text-black outline-none"
+          />
 
-        <input
-          type="password"
-          placeholder="Senha"
-          className="w-full mb-4 px-4 py-2 rounded text-black"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
+          <input
+            type="email"
+            placeholder="Seu email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full px-4 py-3 rounded-lg bg-white text-black outline-none"
+          />
 
-        <button
-          onClick={handleRegister}
-          disabled={loading}
-          className="w-full bg-yellow-400 text-black py-2 rounded font-semibold hover:bg-yellow-300 transition"
-        >
-          {loading ? "Criando conta..." : "Começar grátis por 5 dias"}
-        </button>
+          <input
+            type="password"
+            placeholder="Senha"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="w-full px-4 py-3 rounded-lg bg-white text-black outline-none"
+          />
+
+          <button
+            onClick={handleRegister}
+            disabled={loading}
+            className="w-full bg-yellow-400 hover:bg-yellow-500 text-black font-semibold py-3 rounded-lg transition"
+          >
+            {loading ? "Criando conta..." : "Criar conta grátis por 5 dias"}
+          </button>
+
+        </div>
+
+        <p className="text-center text-sm mt-6 text-blue-100">
+          Você terá acesso completo por 5 dias grátis.
+        </p>
 
       </div>
     </main>
