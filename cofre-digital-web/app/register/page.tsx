@@ -16,13 +16,10 @@ export default function RegisterPage() {
   const router = useRouter();
 
   async function handleRegister() {
-    if (!name || !email || !password) {
-      setError("Preencha todos os campos");
-      return;
-    }
+    if (loading) return;
 
-    setError("");
     setLoading(true);
+    setError("");
 
     try {
       // ✅ Cria usuário no Firebase Auth
@@ -42,20 +39,17 @@ export default function RegisterPage() {
       await setDoc(doc(db, "users", user.uid), {
         name,
         email,
-        plan: "trial",
         createdAt: Timestamp.now(),
         trialEndsAt: Timestamp.fromDate(trialEnd),
+        plan: "trial",
       });
 
-      // ✅ Finaliza loading ANTES de redirecionar
-      setLoading(false);
-
-      // ✅ Vai direto pra página de planos (que existe)
-      router.push("/planos");
+      // ✅ REDIRECIONA PARA O PAINEL (não trava mais)
+      router.replace("/dashboard");
 
     } catch (err) {
       console.error(err);
-      setError("Erro ao criar conta. Email inválido ou senha fraca.");
+      setError("Erro ao criar conta. Verifique email e senha.");
       setLoading(false);
     }
   }
@@ -86,7 +80,7 @@ export default function RegisterPage() {
 
         <input
           className="w-full border rounded px-3 py-2 mb-4"
-          placeholder="Senha (mín. 6 caracteres)"
+          placeholder="Senha"
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
