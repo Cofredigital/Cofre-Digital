@@ -11,19 +11,16 @@ export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const router = useRouter();
 
   async function handleRegister() {
-    if (!name || !email || !password) {
-      alert("Preencha todos os campos");
-      return;
-    }
+    setError("");
+    setLoading(true);
 
     try {
-      setLoading(true);
-
-      // 1️⃣ Cria usuário no Auth
+      // cria no Auth
       const userCredential = await createUserWithEmailAndPassword(
         auth,
         email,
@@ -32,76 +29,106 @@ export default function RegisterPage() {
 
       const user = userCredential.user;
 
-      // 2️⃣ Calcula 5 dias grátis
-      const now = new Date();
+      // data de teste grátis: agora + 5 dias
       const trialEnd = new Date();
-      trialEnd.setDate(now.getDate() + 5);
+      trialEnd.setDate(trialEnd.getDate() + 5);
 
-      // 3️⃣ Salva no Firestore
+      // salva no Firestore
       await setDoc(doc(db, "users", user.uid), {
-        name: name,
-        email: email,
-        createdAt: Timestamp.fromDate(now),
-        trialEnd: Timestamp.fromDate(trialEnd),
-        plan: "free-trial",
+        name,
+        email,
+        createdAt: Timestamp.now(),
+        trialEndsAt: Timestamp.fromDate(trialEnd),
+        plan: "trial"
       });
 
-      // 4️⃣ Finaliza loading e vai pro painel
+      // FINALIZA loading
       setLoading(false);
-      router.push("/panel");
 
-    } catch (error: any) {
-      console.error(error);
+      // redireciona
+      router.push("/success");
+
+    } catch (err: any) {
+      console.error(err);
+      setError("Erro ao criar conta. Tente novamente.");
       setLoading(false);
-      alert("Erro ao criar conta: " + error.message);
     }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-blue-700 to-blue-900">
-      <div className="bg-blue-800 p-8 rounded-xl w-full max-w-md shadow-xl">
-
-        <h1 className="text-yellow-400 text-2xl font-bold text-center mb-6">
+    <div style={{
+      minHeight: "100vh",
+      background: "linear-gradient(180deg,#0d2fb8,#1146ff)",
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center"
+    }}>
+      <div style={{
+        background: "#ffffff",
+        padding: "40px",
+        borderRadius: "12px",
+        width: "320px",
+        textAlign: "center"
+      }}>
+        <h2 style={{ marginBottom: "20px", color: "#1146ff" }}>
           Criar conta grátis
-        </h1>
+        </h2>
 
         <input
-          type="text"
           placeholder="Nome"
           value={name}
-          onChange={(e) => setName(e.target.value)}
-          className="w-full p-3 rounded mb-3 text-black"
+          onChange={e => setName(e.target.value)}
+          style={inputStyle}
         />
 
         <input
-          type="email"
           placeholder="Email"
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="w-full p-3 rounded mb-3 text-black"
+          onChange={e => setEmail(e.target.value)}
+          style={inputStyle}
         />
 
         <input
           type="password"
           placeholder="Senha"
           value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="w-full p-3 rounded mb-4 text-black"
+          onChange={e => setPassword(e.target.value)}
+          style={inputStyle}
         />
+
+        {error && (
+          <p style={{ color: "red", fontSize: "14px" }}>{error}</p>
+        )}
 
         <button
           onClick={handleRegister}
           disabled={loading}
-          className="w-full bg-yellow-400 hover:bg-yellow-500 text-black font-bold py-3 rounded"
+          style={{
+            background: "#ffcc00",
+            border: "none",
+            padding: "12px",
+            width: "100%",
+            borderRadius: "6px",
+            cursor: "pointer",
+            fontWeight: "bold",
+            marginTop: "10px"
+          }}
         >
           {loading ? "Criando conta..." : "Criar conta"}
         </button>
 
-        <p className="text-center text-white mt-4 text-sm">
+        <p style={{ marginTop: "12px", fontSize: "13px" }}>
           Você terá acesso completo por 5 dias grátis.
         </p>
-
       </div>
     </div>
   );
 }
+
+const inputStyle = {
+  width: "100%",
+  padding: "10px",
+  marginBottom: "12px",
+  borderRadius: "6px",
+  border: "1px solid #ccc"
+};
