@@ -16,12 +16,16 @@ export default function RegisterPage() {
   const router = useRouter();
 
   async function handleRegister() {
-    if (loading) return;
+    if (!name || !email || !password) {
+      setError("Preencha todos os campos");
+      return;
+    }
 
-    setLoading(true);
     setError("");
+    setLoading(true);
 
     try {
+      // 🔐 Cria usuário no Firebase Auth
       const userCredential = await createUserWithEmailAndPassword(
         auth,
         email,
@@ -30,9 +34,11 @@ export default function RegisterPage() {
 
       const user = userCredential.user;
 
+      // ⏳ Trial de 5 dias
       const trialEnd = new Date();
       trialEnd.setDate(trialEnd.getDate() + 5);
 
+      // 💾 Salva no Firestore
       await setDoc(doc(db, "users", user.uid), {
         name,
         email,
@@ -41,11 +47,8 @@ export default function RegisterPage() {
         plan: "trial",
       });
 
-      // ✅ sempre finaliza loading antes de redirecionar
-      setLoading(false);
-
-      // ✅ redirect garantido
-      window.location.href = "/checkout/success";
+      // ✅ Redireciona (NÃO trava mais)
+      router.push("/planos");
 
     } catch (err) {
       console.error(err);
@@ -56,6 +59,7 @@ export default function RegisterPage() {
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gradient-to-b from-blue-600 to-blue-800">
+
       <div className="bg-white p-8 rounded-xl shadow-xl w-full max-w-sm text-center">
 
         <h1 className="text-2xl font-bold mb-6 text-blue-700">
@@ -85,7 +89,9 @@ export default function RegisterPage() {
           onChange={(e) => setPassword(e.target.value)}
         />
 
-        {error && <p className="text-red-600 mb-3">{error}</p>}
+        {error && (
+          <p className="text-red-600 mb-3">{error}</p>
+        )}
 
         <button
           onClick={handleRegister}
