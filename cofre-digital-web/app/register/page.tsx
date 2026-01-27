@@ -16,11 +16,16 @@ export default function RegisterPage() {
   const router = useRouter();
 
   async function handleRegister() {
+    if (!name || !email || !password) {
+      setError("Preencha todos os campos");
+      return;
+    }
+
     setError("");
     setLoading(true);
 
     try {
-      // ✅ cria usuário
+      // ✅ Cria usuário no Firebase Auth
       const userCredential = await createUserWithEmailAndPassword(
         auth,
         email,
@@ -29,34 +34,35 @@ export default function RegisterPage() {
 
       const user = userCredential.user;
 
-      // ✅ trial de 5 dias
+      // ✅ Trial de 5 dias
       const trialEnd = new Date();
       trialEnd.setDate(trialEnd.getDate() + 5);
 
+      // ✅ Salva no Firestore
       await setDoc(doc(db, "users", user.uid), {
         name,
         email,
+        plan: "trial",
         createdAt: Timestamp.now(),
         trialEndsAt: Timestamp.fromDate(trialEnd),
-        plan: "trial",
       });
 
-      // ✅ FINALIZA loading ANTES de navegar
+      // ✅ Finaliza loading ANTES de redirecionar
       setLoading(false);
 
-      // 👉 manda direto para planos (não trava mais)
+      // ✅ Vai direto pra página de planos (que existe)
       router.push("/planos");
 
     } catch (err) {
       console.error(err);
-
-      setError("Erro ao criar conta. Verifique os dados.");
+      setError("Erro ao criar conta. Email inválido ou senha fraca.");
       setLoading(false);
     }
   }
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gradient-to-b from-blue-600 to-blue-800">
+
       <div className="bg-white p-8 rounded-xl shadow-xl w-full max-w-sm text-center">
 
         <h1 className="text-2xl font-bold mb-6 text-blue-700">
@@ -80,7 +86,7 @@ export default function RegisterPage() {
 
         <input
           className="w-full border rounded px-3 py-2 mb-4"
-          placeholder="Senha"
+          placeholder="Senha (mín. 6 caracteres)"
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
