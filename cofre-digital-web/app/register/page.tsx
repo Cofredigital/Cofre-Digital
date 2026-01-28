@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { createUserWithEmailAndPassword } from "firebase/auth";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, setDoc, Timestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
 
@@ -22,38 +22,34 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      // 1️⃣ Criar usuário no Auth
+      // Criar usuário no Firebase Auth
       const userCredential = await createUserWithEmailAndPassword(
         auth,
-        email.trim(),
+        email,
         password
       );
 
       const user = userCredential.user;
 
-      // 2️⃣ Calcular trial de 5 dias
+      // Trial de 5 dias
       const trialEnd = new Date();
       trialEnd.setDate(trialEnd.getDate() + 5);
 
-      // 3️⃣ Salvar no Firestore
+      // Salvar no Firestore
       await setDoc(doc(db, "users", user.uid), {
         name,
         email,
+        createdAt: Timestamp.now(),
+        trialEndsAt: Timestamp.fromDate(trialEnd),
         plan: "trial",
-        trialEndsAt: trialEnd,
-        createdAt: serverTimestamp(),
       });
 
-      // 4️⃣ Redirecionar direto pro painel
+      // 🔥 REDIRECIONA DIRETO PARA O PAINEL
       router.replace("/dashboard");
 
-    } catch (err: any) {
-      console.error("REGISTER ERROR:", err);
-
-      setError(
-        err?.message || "Erro ao criar conta. Tente novamente."
-      );
-
+    } catch (err) {
+      console.error(err);
+      setError("Erro ao criar conta. Tente novamente.");
       setLoading(false);
     }
   }
@@ -90,9 +86,7 @@ export default function RegisterPage() {
         />
 
         {error && (
-          <p className="text-red-600 mb-3 text-sm">
-            {error}
-          </p>
+          <p className="text-red-600 mb-3">{error}</p>
         )}
 
         <button
