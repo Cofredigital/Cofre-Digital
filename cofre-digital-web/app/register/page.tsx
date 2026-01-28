@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { createUserWithEmailAndPassword } from "firebase/auth";
-import { doc, setDoc, Timestamp } from "firebase/firestore";
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
 
@@ -18,43 +18,42 @@ export default function RegisterPage() {
   async function handleRegister() {
     if (loading) return;
 
-    setLoading(true);
     setError("");
+    setLoading(true);
 
     try {
-      // ✅ cria no Firebase Auth
+      // 1️⃣ Criar usuário no Auth
       const userCredential = await createUserWithEmailAndPassword(
         auth,
-        email,
+        email.trim(),
         password
       );
 
       const user = userCredential.user;
 
-      // ✅ calcula trial 5 dias
+      // 2️⃣ Calcular trial de 5 dias
       const trialEnd = new Date();
       trialEnd.setDate(trialEnd.getDate() + 5);
 
-      // ✅ tenta salvar no Firestore (SEM travar o sistema)
-      try {
-        await setDoc(doc(db, "users", user.uid), {
-          name,
-          email,
-          createdAt: Timestamp.now(),
-          trialEndsAt: Timestamp.fromDate(trialEnd),
-          plan: "trial",
-        });
-      } catch (firestoreError) {
-        console.error("Erro Firestore (não trava):", firestoreError);
-      }
+      // 3️⃣ Salvar no Firestore
+      await setDoc(doc(db, "users", user.uid), {
+        name,
+        email,
+        plan: "trial",
+        trialEndsAt: trialEnd,
+        createdAt: serverTimestamp(),
+      });
 
-      // ✅ SEMPRE REDIRECIONA
-      router.push("/dashboard");
+      // 4️⃣ Redirecionar direto pro painel
+      router.replace("/dashboard");
 
-    } catch (authError: any) {
-      console.error(authError);
+    } catch (err: any) {
+      console.error("REGISTER ERROR:", err);
 
-      setError("Erro ao criar conta. Verifique email e senha.");
+      setError(
+        err?.message || "Erro ao criar conta. Tente novamente."
+      );
+
       setLoading(false);
     }
   }
@@ -91,7 +90,9 @@ export default function RegisterPage() {
         />
 
         {error && (
-          <p className="text-red-600 mb-3">{error}</p>
+          <p className="text-red-600 mb-3 text-sm">
+            {error}
+          </p>
         )}
 
         <button
@@ -105,6 +106,7 @@ export default function RegisterPage() {
         <p className="text-sm text-gray-600 mt-4">
           Você terá acesso completo por 5 dias grátis.
         </p>
+
       </div>
     </div>
   );
