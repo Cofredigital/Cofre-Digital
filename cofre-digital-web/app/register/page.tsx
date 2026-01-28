@@ -4,7 +4,6 @@ import { useState } from "react";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { doc, setDoc, Timestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
-import { useRouter } from "next/navigation";
 
 export default function RegisterPage() {
   const [name, setName] = useState("");
@@ -12,8 +11,6 @@ export default function RegisterPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-
-  const router = useRouter();
 
   async function handleRegister() {
     if (loading) return;
@@ -31,25 +28,26 @@ export default function RegisterPage() {
 
       const user = userCredential.user;
 
-      // Trial de 5 dias
+      // Criar trial de 5 dias
       const trialEnd = new Date();
       trialEnd.setDate(trialEnd.getDate() + 5);
 
       // Salvar no Firestore
       await setDoc(doc(db, "users", user.uid), {
-        name,
-        email,
+        name: name,
+        email: email,
         createdAt: Timestamp.now(),
         trialEndsAt: Timestamp.fromDate(trialEnd),
         plan: "trial",
       });
 
-      // 🔥 REDIRECIONA DIRETO PARA O PAINEL
-      router.replace("/dashboard");
+      // ✅ Redirecionar (forma segura no Next + Vercel)
+      window.location.href = "/dashboard";
 
     } catch (err) {
       console.error(err);
       setError("Erro ao criar conta. Tente novamente.");
+    } finally {
       setLoading(false);
     }
   }
